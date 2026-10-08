@@ -1,0 +1,73 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+
+# next.js
+/.next/
+/out/
+
+# production
+/build
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# local smoke-test / curl artifacts (session cookies, CSRF tokens, server logs)
+/cookies.txt
+/csrf.json
+/csrf.txt
+/dev-server.log
+/server.log
+/login-smoke*.log
+
+# local runtime logs (dev server, mongodb, one-off installs)
+*.log
+!docs/**/*.log
+
+# env files (can opt-in for committing if needed)
+.env*
+!.env.example
+
+# vercel
+.vercel
+
+# typescript
+*.tsbuildinfo
+next-env.d.ts
+.dyad/
+
+# MongoDB memory server data
+.mongodb-data/
+# local mongod binary (55MB, downloaded by mongodb-memory-server)
+.mongodb-binaries/
+.aider*
+
+# local runtime logs without a .log suffix
+mongodb-dev.log*
+*.log.err
+*.log.*
+
+# agent / tool local state
+.omo/
+.kilo/
+.kilocode/
+.claude/
+.freebuff/
