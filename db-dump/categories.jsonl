@@ -1,0 +1,4 @@
+{"_id":"6aba1d2d328488917a81519e","slug":"marketing","__v":0,"color":"#EC4899","createdAt":"2026-09-28T07:54:21.449Z","description":"Campaigns, content, brand and communications","name":"Marketing","updatedAt":"2026-10-07T07:18:23.578Z"}
+{"_id":"6aba1d2d328488917a8151a0","slug":"development","__v":0,"color":"#4F46E5","createdAt":"2026-09-28T07:54:21.449Z","description":"Engineering, bugs and product development","name":"Development","updatedAt":"2026-10-07T07:18:23.579Z"}
+{"_id":"6aba1d2d328488917a8151a2","slug":"sales","__v":0,"color":"#10B981","createdAt":"2026-09-28T07:54:21.449Z","description":"Deals, CRM, invoicing and pipeline","name":"Sales","updatedAt":"2026-10-07T07:18:23.579Z","departmentId":null}
+{"_id":"6aba1d2d328488917a8151a4","slug":"other","__v":0,"color":"#6B7280","createdAt":"2026-09-28T07:54:21.449Z","description":"Everything that fits nowhere else","name":"Other","updatedAt":"2026-10-07T07:18:23.579Z"}
