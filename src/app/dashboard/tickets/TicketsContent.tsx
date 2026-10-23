@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -15,7 +16,8 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TicketList, ticketHref } from "@/components/tickets";
+import { TicketList, TicketCard, ticketHref, TicketCardSkeleton } from "@/components/tickets";
+import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTable } from "@/components/tickets/TicketTable";
 import { useSession } from "next-auth/react";
 import { TRANSFERS_ENABLED } from "@/lib/features";
@@ -30,6 +32,9 @@ import {
   Flag,
   Sparkles,
   Send,
+  LayoutGrid,
+  List,
+  TicketPlus,
 } from "lucide-react";
 import type { IUser, IDepartment } from "@/lib/db/models";
 
@@ -85,6 +90,8 @@ export function TicketsContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   // Local input mirrors instantly; the actual query is debounced.
   const [searchInput, setSearchInput] = useState("");
+  // Tabela grid vs table toggle
+  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
 
   const isManagerOrAdmin = currentUserRole === "manager" || currentUserRole === "super_admin";
   const isStaff = currentUserRole === "team" || isManagerOrAdmin;
@@ -363,17 +370,78 @@ export function TicketsContent() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="space-y-4 p-6" aria-label="Loading tickets" aria-busy="true">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex animate-pulse items-center gap-3 border-b border-border p-4 last:border-0">
-                  <div className="h-8 w-8 shrink-0 rounded bg-muted" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 w-1/4 rounded bg-muted" />
-                    <div className="h-3 w-1/2 rounded bg-muted" />
-                  </div>
+            <div aria-label="Loading tickets" aria-busy="true">
+              {/* Header count and view mode toggle skeleton */}
+              <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5 sm:px-5 sm:py-3">
+                <Skeleton className="h-4 w-28 rounded" />
+                <Skeleton className="hidden sm:flex h-7 w-28 rounded-xl" />
+              </div>
+
+              {viewMode === "cards" ? (
+                <div className="grid grid-cols-1 gap-3.5 p-3.5 sm:gap-5 sm:p-5 md:grid-cols-2">
+                  {page === 1 && !hasActiveFilters && (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-[#D4D4D8] bg-white/40 p-6 text-center dark:border-[#3F3F46] dark:bg-[#1C1C20]/40">
+                      <Skeleton className="mb-3 h-12 w-12 rounded-2xl" />
+                      <Skeleton className="h-4 w-28 rounded" />
+                      <Skeleton className="mt-1 h-3 w-40 rounded" />
+                      <Skeleton className="mt-3 h-8 w-28 rounded-xl" />
+                    </div>
+                  )}
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <TicketCardSkeleton key={i} variant="default" />
+                  ))}
                 </div>
-              ))}
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-sm">
+                    <thead className="border-b border-border bg-secondary/50 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      <tr>
+                        <th className="px-3 py-3 hidden sm:table-cell"><Skeleton className="h-3 w-14 rounded" /></th>
+                        <th className="px-3 py-3"><Skeleton className="h-3 w-28 rounded" /></th>
+                        <th className="px-3 py-3 hidden xl:table-cell"><Skeleton className="h-3 w-16 rounded" /></th>
+                        <th className="px-3 py-3"><Skeleton className="h-3 w-16 rounded" /></th>
+                        <th className="px-3 py-3 hidden md:table-cell"><Skeleton className="h-3 w-16 rounded" /></th>
+                        <th className="px-3 py-3"><Skeleton className="h-3 w-20 rounded" /></th>
+                        <th className="px-3 py-3 hidden lg:table-cell"><Skeleton className="h-3 w-20 rounded" /></th>
+                        <th className="px-3 py-3 hidden lg:table-cell"><Skeleton className="h-3 w-16 rounded font-mono" /></th>
+                        <th className="px-3 py-3 text-right"><Skeleton className="h-3 w-12 rounded ml-auto" /></th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-border/70">
+                      {[1, 2, 3, 4, 5, 6].map((i) => (
+                        <tr key={i}>
+                          <td className="px-3 py-3 hidden sm:table-cell"><Skeleton className="h-4 w-16 rounded font-mono" /></td>
+                          <td className="px-3 py-3">
+                            <Skeleton className="h-4 w-48 rounded" />
+                            <Skeleton className="h-3 w-24 rounded mt-1 sm:hidden" />
+                          </td>
+                          <td className="px-3 py-3 hidden xl:table-cell">
+                            <div className="flex items-center gap-1.5">
+                              <Skeleton className="h-5 w-5 rounded-full" />
+                              <Skeleton className="h-3 w-20 rounded" />
+                            </div>
+                          </td>
+                          <td className="px-3 py-3"><Skeleton className="h-5 w-16 rounded-full" /></td>
+                          <td className="px-3 py-3 hidden md:table-cell"><Skeleton className="h-5 w-14 rounded-full" /></td>
+                          <td className="px-3 py-3"><Skeleton className="h-7 w-32 rounded-lg" /></td>
+                          <td className="px-3 py-3 hidden lg:table-cell"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                          <td className="px-3 py-3 hidden lg:table-cell"><Skeleton className="h-3 w-16 rounded font-mono" /></td>
+                          <td className="px-3 py-3 text-right"><Skeleton className="h-7 w-14 rounded-lg ml-auto" /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+
+              {/* Pagination skeleton */}
+              <div className="flex flex-col gap-3 border-t border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+                <Skeleton className="h-4 w-48 rounded" />
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-8 w-20 rounded-lg" />
+                  <Skeleton className="h-8 w-20 rounded-lg" />
+                </div>
+              </div>
             </div>
           ) : error ? (
             <div className="p-12 text-center">
@@ -419,32 +487,80 @@ export function TicketsContent() {
             </div>
           ) : (
             <>
-              <div className="border-b border-border px-4 py-3">
-                <p className="text-sm text-muted-foreground" role="status">
+              <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5 sm:px-5 sm:py-3">
+                <p className="text-xs font-semibold text-muted-foreground" role="status">
                   {pagination.total} ticket{pagination.total !== 1 ? "s" : ""}
                   {hasActiveFilters ? " matching filters" : ""}
                 </p>
+                <div className="hidden sm:flex items-center gap-1 rounded-xl border border-border bg-secondary/40 p-1">
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("cards")}
+                    className={cn(
+                      "flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-all",
+                      viewMode === "cards"
+                        ? "bg-card text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-label="Cards view"
+                  >
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    Cards
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setViewMode("table")}
+                    className={cn(
+                      "flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-all",
+                      viewMode === "table"
+                        ? "bg-card text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-label="Table view"
+                  >
+                    <List className="h-3.5 w-3.5" />
+                    Table
+                  </button>
+                </div>
               </div>
-              {currentUserId && currentUserRole ? (
-                <>
-                  {/* Dense table on sm+; cards on phones. */}
-                  <div className="hidden sm:block">
-                    <TicketTable
-                      tickets={tickets as any}
-                      currentUserId={currentUserId}
-                      currentUserRole={currentUserRole}
-                      currentDepartmentId={session?.user?.departmentId as string | undefined}
-                      onChanged={() => setRefreshKey((k) => k + 1)}
+
+              {viewMode === "cards" ? (
+                <div className="grid grid-cols-1 gap-3.5 p-3.5 sm:gap-5 sm:p-5 md:grid-cols-2">
+                  {page === 1 && !hasActiveFilters && (
+                    <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-border bg-card/60 p-6 text-center transition-all hover:bg-card hover:border-[#F399B3]/40">
+                      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-secondary text-foreground">
+                        <TicketPlus className="h-6 w-6 text-foreground" />
+                      </div>
+                      <h4 className="text-sm font-bold text-foreground">Submit a Ticket</h4>
+                      <p className="mt-1 max-w-[200px] text-xs text-muted-foreground">
+                        Report an issue or assign a request to the team.
+                      </p>
+                      <Link href="/dashboard/tickets/new" className="mt-3">
+                        <Button variant="accent" size="sm" className="font-bold">
+                          Create Ticket +
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
+                  {tickets.map((t) => (
+                    <TicketCard
+                      key={t._id}
+                      ticket={t as any}
+                      href={ticketHref(t)}
                     />
-                  </div>
-                  <div className="space-y-3 p-4 sm:hidden">
-                    <TicketList
-                      tickets={tickets as any}
-                      variant="compact"
-                      hrefFor={(t) => ticketHref(t)}
-                    />
-                  </div>
-                </>
+                  ))}
+                </div>
+              ) : currentUserId && currentUserRole ? (
+                <div className="hidden sm:block">
+                  <TicketTable
+                    tickets={tickets as any}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    currentDepartmentId={session?.user?.departmentId as string | undefined}
+                    onChanged={() => setRefreshKey((k) => k + 1)}
+                    className="border-0 rounded-none shadow-none"
+                  />
+                </div>
               ) : (
                 <div className="space-y-3 p-4">
                   <TicketList

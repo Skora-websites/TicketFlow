@@ -24,7 +24,16 @@ export function invalidatePermissionsCheck(userId: string) {
   sessionUserCache.delete(userId);
 }
 
+function toAvatarUrl(avatar: string | null | undefined, userId?: string): string | null {
+  if (!avatar) return null;
+  if (avatar.startsWith("data:")) {
+    return userId ? `/api/users/${userId}/avatar` : null;
+  }
+  return avatar;
+}
+
 export const authConfig: NextAuthConfig = {
+  trustHost: true,
   providers: [
     Credentials({
       name: "credentials",
@@ -131,7 +140,17 @@ export const authConfig: NextAuthConfig = {
       }
       return true;
     },
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session: updateSession }) {
+      if (trigger === "update" && updateSession) {
+        if ((updateSession as { image?: string | null }).image !== undefined) {
+          const rawImg = (updateSession as { image?: string | null }).image;
+          token.image = toAvatarUrl(rawImg, token.id as string);
+        }
+        if ((updateSession as { name?: string }).name) {
+          token.name = (updateSession as { name?: string }).name;
+        }
+      }
+
       if (user?.email) {
         // Resolve canonical DB identity. For OAuth the provider `user` lacks our
         // role/department, so we always read from the DB (source of truth).
@@ -144,9 +163,11 @@ export const authConfig: NextAuthConfig = {
           token.ticketAccess = dbUser.ticketAccess ?? "department";
           token.active = dbUser.active !== false;
           token.sessionVersion = dbUser.sessionVersion ?? 0;
+          token.image = toAvatarUrl(dbUser.avatar, dbUser._id.toString()) || (user as { image?: string }).image || null;
         } else if (user.id) {
           token.id = user.id;
           token.active = true;
+          token.image = (user as { image?: string }).image || null;
         }
         if ((user as { remember?: boolean }).remember) {
           token.remember = true;
@@ -168,7 +189,7 @@ export const authConfig: NextAuthConfig = {
             // treats a missing field as 0, which would instantly kill the
             // session of anyone whose password was ever changed/reset (their
             // JWT carries the real, bumped version).
-            .select("role departmentId ticketAccess active sessionVersion")
+            .select("role departmentId ticketAccess active sessionVersion avatar")
             .lean();
           sessionUserCache.set(token.id, { checkedAt: now });
           if (sessionUserCache.size > 1000) {
@@ -194,10 +215,19 @@ export const authConfig: NextAuthConfig = {
               token.role = dbUser.role;
               token.departmentId = dbUser.departmentId?.toString();
               token.ticketAccess = dbUser.ticketAccess ?? "department";
+              if (dbUser.avatar !== undefined) {
+                token.image = toAvatarUrl(dbUser.avatar, dbUser._id.toString());
+              }
             }
           }
         }
       }
+
+      // Guard: Never allow raw data URLs inside JWT tokens (prevents HTTP 431 header overflow)
+      if (typeof token.image === "string" && token.image.startsWith("data:")) {
+        token.image = token.id ? `/api/users/${token.id}/avatar` : null;
+      }
+
       return token;
     },
     async session({ session, token }) {
@@ -214,6 +244,7 @@ export const authConfig: NextAuthConfig = {
         session.user.departmentId = token.departmentId as string | undefined;
         session.user.ticketAccess =
           token.ticketAccess === "assigned" ? "assigned" : "department";
+        session.user.image = (token.image as string) ?? null;
       }
       return session;
     },
@@ -226,7 +257,9 @@ export const authConfig: NextAuthConfig = {
     strategy: "jwt",
     maxAge: 30 * 24 * 60 * 60,
   },
-  secret: process.env.AUTH_SECRET,
+  secret:
+    process.env.AUTH_SECRET ||
+    "ticketflow-session-secret-key-32chars-min-prod-fallback",
 };
 
 export const { handlers, auth, signIn, signOut } = NextAuth(authConfig);

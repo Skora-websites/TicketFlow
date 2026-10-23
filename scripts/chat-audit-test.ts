@@ -44,7 +44,7 @@ function test(name: string, fn: () => void | Promise<void>) {
 }
 
 async function main() {
-  const { checkRate } = await import("../src/lib/rateLimit");
+  const { checkRate } = await import("../src/lib/runtime");
 
   console.log("conversation schema defaults (additive migration safety)");
   const { Comment, TicketReadState } = await import("../src/lib/db/models");

@@ -10,10 +10,18 @@ import { notify } from "@/lib/notifications";
 import { attachmentMimeAllowed, MAX_ATTACHMENT_BYTES, MAX_ATTACHMENTS_PER_TICKET, ALLOWED_ATTACHMENT_MIMES } from "@/lib/fileValidation";
 import { stripAttachmentData } from "@/lib/attachments";
 import { putAttachment, deleteAttachment } from "@/lib/attachments-store";
+import {
+  enforceRateLimit,
+  canCreateTicket,
+  recordTicketCreated,
+  canUploadAttachment,
+  recordAttachmentUploaded,
+  DB_QUERY_MAX_TIME_MS,
+} from "@/lib/security";
 
 const ticketQuerySchema = z.object({
   page: z.coerce.number().positive().default(1),
-  limit: z.coerce.number().positive().max(100).default(20),
+  limit: z.coerce.number().positive().max(50).default(20),
   status: z.enum(["open", "in_progress", "on_hold", "resolved", "closed"]).optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   // Categories are dynamic (super admins can add more) — validated loosely
@@ -157,20 +165,21 @@ export async function GET(request: NextRequest) {
 
     const [tickets, total] = await Promise.all([
       Ticket.find(filter)
-        .populate("requesterId", "name email")
-        .populate("assigneeId", "name email")
+        .populate("requesterId", "name email avatar")
+        .populate("assigneeId", "name email avatar")
         .populate("departmentId", "name color")
         .populate("transfer.fromId", "name email role")
         .populate("transfer.toUserId", "name email")
         .populate("transfer.toManagerId", "name email")
         .populate("transfer.toDepartmentId", "name color")
         .populate("transfer.approvedBy", "name")
-      .populate("transfer.rejectedBy", "name")
+        .populate("transfer.rejectedBy", "name")
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .maxTimeMS(DB_QUERY_MAX_TIME_MS)
         .lean(),
-      Ticket.countDocuments(filter),
+      Ticket.countDocuments(filter).maxTimeMS(DB_QUERY_MAX_TIME_MS),
     ]);
 
     // Never serialize binary attachment payloads into list responses.
@@ -199,6 +208,25 @@ export async function POST(request: NextRequest) {
     const authResult = await requireApiRole("client", "team", "manager", "super_admin");
     if (authResult instanceof NextResponse) return authResult;
     const user = authResult;
+
+    // Rate Limit: 10 tickets per minute per user
+    const rateCheck = await enforceRateLimit(
+      `tickets:create:${user.id}`,
+      10,
+      60_000,
+      "Too many tickets created. Please wait a minute before submitting again."
+    );
+    if (rateCheck) return rateCheck;
+
+    // Usage Quota: client daily ticket quota (25 tickets/day)
+    const quotaCheck = await canCreateTicket(user.id, user.role);
+    if (!quotaCheck.allowed) {
+      return NextResponse.json(
+        { error: "Daily ticket creation quota reached (25 tickets/day). Please try again tomorrow." },
+        { status: 429 }
+      );
+    }
+
     await connectDB();
 
     const PRIORITIES = ["low", "medium", "high", "urgent"] as const;
@@ -334,6 +362,12 @@ export async function POST(request: NextRequest) {
         if (!ALLOWED_ATTACHMENT_MIMES.has(file.type)) {
           return NextResponse.json({ error: `Unsupported file type: ${file.name}` }, { status: 400 });
         }
+        // Storage Quota Guard: verify user daily upload limit and DB safety threshold
+        const storageCheck = await canUploadAttachment(user.id, file.size);
+        if (!storageCheck.allowed) {
+          return NextResponse.json({ error: storageCheck.reason || "Storage quota exceeded" }, { status: 400 });
+        }
+
         const buffer = Buffer.from(await file.arrayBuffer());
         if (!attachmentMimeAllowed(file.type, buffer)) {
           return NextResponse.json({ error: `File content does not match its type: ${file.name}` }, { status: 400 });
@@ -347,6 +381,7 @@ export async function POST(request: NextRequest) {
             filename: file.name.slice(0, 255),
             mime: file.type,
           });
+          await recordAttachmentUploaded(user.id, file.size);
         } catch (storeErr) {
           console.error("attachment store write failed:", storeErr);
           return NextResponse.json({ error: "Failed to store attachment" }, { status: 500 });
@@ -381,6 +416,7 @@ export async function POST(request: NextRequest) {
       ticketDoc.ticketNumber = `TK-${String(nextNum).padStart(4, "0")}`;
       try {
         created = await Ticket.create(ticketDoc);
+        await recordTicketCreated(user.id);
         break;
       } catch (createErr: any) {
         if (createErr?.code === 11000 && attempt < 4) continue;
@@ -408,8 +444,8 @@ export async function POST(request: NextRequest) {
     }
 
     const populatedTicket = await Ticket.findById(created._id)
-      .populate("requesterId", "name email")
-      .populate("assigneeId", "name email")
+      .populate("requesterId", "name email avatar")
+      .populate("assigneeId", "name email avatar")
       .populate("departmentId", "name color")
       .populate(TRANSFER_POPULATE)
       .lean();

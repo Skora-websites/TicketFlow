@@ -1,33 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   ArrowRight,
   Check,
   Inbox,
   RotateCcw,
   Zap,
-  Users,
-  Clock,
   BarChart3,
-  FileCheck,
-  ShieldCheck,
   Search,
-  LayoutDashboard,
-  TicketCheck,
-  Send,
-  FolderKanban,
   Gauge,
   Cpu,
-  Building2,
   MessageSquare,
-  Paperclip,
-  ArrowLeftRight,
   SlidersHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLandingGsap } from "@/app/landing-gsap";
+import { useSession } from "next-auth/react";
 
 /* =====================================================================
    Landing page — dark only, cobalt accent, editorial-modular.
@@ -49,10 +39,10 @@ const GRID_BG = {
   backgroundSize: "56px 56px",
 };
 
-/* Soft radial cobalt glow for hero / CTA. */
+/* Soft radial lilac glow for hero / CTA. */
 const GLOW_BG = {
   backgroundImage:
-    "radial-gradient(ellipse 60% 50% at 70% 20%, rgb(79 144 248 / 0.09), transparent 70%)",
+    "radial-gradient(ellipse 60% 50% at 70% 20%, rgb(196 167 255 / 0.14), transparent 70%)",
 };
 
 /* Dotted texture for feature folder panel. */
@@ -60,14 +50,6 @@ const DOTS_BG = {
   backgroundImage: "radial-gradient(rgb(255 255 255 / 0.045) 1px, transparent 1px)",
   backgroundSize: "22px 22px",
 };
-
-const ACCENT = "#4F90F8";
-
-/* ---------------- textures helper ---------------- */
-function texture(kind: "noise" | "grid" | "dots" | "glow", extra?: string) {
-  const map = { noise: NOISE, grid: GRID_BG, dots: DOTS_BG, glow: GLOW_BG };
-  return cn("w-full", extra);
-}
 
 /* ---------------- shared section header ---------------- */
 function SectionHeader({
@@ -86,7 +68,7 @@ function SectionHeader({
       data-animate="header"
       className={cn("max-w-2xl", align === "center" && "mx-auto text-center")}
     >
-      <p data-animate="header-child" className="font-mono text-[0.8125rem] uppercase tracking-[0.16em] text-[#4F90F8]">
+      <p data-animate="header-child" className="font-mono text-[0.8125rem] uppercase tracking-[0.16em] text-[#C4A7FF]">
         {eyebrow}
       </p>
       <h2
@@ -114,11 +96,15 @@ const NAV_SECTIONS = [
 ];
 
 function Header() {
+  const { data: session } = useSession();
+  const isClient = session?.user?.role === "client";
+  const workspaceHref = isClient ? "/client/tickets" : "/dashboard/overview";
+
   return (
-    <header className="sticky top-0 z-40 border-b border-zinc-800/70 bg-[#18181b]/90 backdrop-blur-xl" style={NOISE}>
+    <header className="sticky top-0 z-40 border-b border-[#261836] bg-[#0E0A14]/95 backdrop-blur-xl" style={NOISE}>
       <div className="mx-auto flex h-16 max-w-6xl items-center justify-between gap-4 px-5 sm:px-6">
         <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="TicketFlow home">
-          <span className="grid h-7 w-7 place-items-center rounded-md bg-[#4F90F8] font-display text-sm font-bold text-zinc-900">T</span>
+          <span className="grid h-7 w-7 place-items-center rounded-md bg-[#C4A7FF] font-display text-sm font-bold text-[#120A20]">T</span>
           <span className="font-display text-[1.0625rem] font-bold tracking-tight text-zinc-100">TicketFlow</span>
         </Link>
         <nav className="flex min-w-0 items-center gap-3.5 text-[0.8125rem] text-zinc-400 sm:gap-7 sm:text-[0.9rem]" aria-label="Primary">
@@ -128,16 +114,28 @@ function Header() {
               <span className="hidden sm:inline">{s.label}</span>
             </a>
           ))}
-          <Link className="hidden shrink-0 transition-colors hover:text-[#4F90F8] sm:inline" href="/login">
-            Sign in
-          </Link>
-          <Link
-            href="/signup"
-            className="group inline-flex shrink-0 items-center gap-1.5 rounded-md bg-zinc-100 px-3.5 py-2 text-[0.8125rem] font-semibold text-zinc-900 transition-colors hover:bg-white sm:px-4 sm:text-sm"
-          >
-            Get started
-            <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
-          </Link>
+          {session?.user ? (
+            <Link
+              href={workspaceHref}
+              className="group inline-flex shrink-0 items-center gap-1.5 rounded-md bg-[#C4A7FF] px-3.5 py-2 text-[0.8125rem] font-semibold text-[#120A20] transition-colors hover:bg-[#B593FF] sm:px-4 sm:text-sm"
+            >
+              Open Workspace
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+            </Link>
+          ) : (
+            <>
+              <Link className="hidden shrink-0 transition-colors hover:text-[#C4A7FF] sm:inline" href="/login">
+                Sign in
+              </Link>
+              <Link
+                href="/login"
+                className="group inline-flex shrink-0 items-center gap-1.5 rounded-md bg-white px-3.5 py-2 text-[0.8125rem] font-semibold text-[#121212] transition-colors hover:bg-[#E9E7E8] sm:px-4 sm:text-sm"
+              >
+                Get started
+                <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+            </>
+          )}
         </nav>
       </div>
     </header>
@@ -215,7 +213,7 @@ function DemoBoard() {
           <button
             type="button"
             onClick={assignNext}
-            className="inline-flex items-center gap-1.5 rounded-md bg-[#4F90F8] px-3 py-1.5 text-sm font-semibold text-zinc-900 transition-colors hover:bg-[#6FA6FA]"
+            className="inline-flex items-center gap-1.5 rounded-md bg-[#C4A7FF] px-3 py-1.5 text-sm font-semibold text-[#120A20] transition-colors hover:bg-[#B593FF]"
           >
             <Zap className="h-3.5 w-3.5" aria-hidden />
             Assign next
@@ -224,7 +222,7 @@ function DemoBoard() {
       </div>
 
       <div className="h-0.5 bg-zinc-800" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100} aria-label="Queue cleared">
-        <div className="h-full bg-[#4F90F8] transition-all duration-500" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-[#C4A7FF] transition-all duration-500" style={{ width: `${pct}%` }} />
       </div>
 
       <ul className="divide-y divide-zinc-800/80">
@@ -244,7 +242,7 @@ function DemoBoard() {
             <span className="hidden text-sm text-zinc-400 sm:block">
               {t.done ? (
                 <span className="inline-flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 text-[#4F90F8]" aria-hidden />
+                  <Check className="h-3.5 w-3.5 text-[#C4A7FF]" aria-hidden />
                   {t.assignee}
                 </span>
               ) : (
@@ -253,7 +251,7 @@ function DemoBoard() {
             </span>
             <span className="col-start-2 row-start-1 sm:col-start-auto sm:row-start-auto">
               {t.done ? (
-                <span className="inline-block whitespace-nowrap rounded border border-[#4F90F8]/60 px-2 py-px font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-[#4F90F8] motion-safe:animate-stamp-in">
+                <span className="inline-block whitespace-nowrap rounded border border-[#C4A7FF]/60 px-2 py-px font-mono text-[0.6875rem] font-semibold uppercase tracking-[0.14em] text-[#C4A7FF] motion-safe:animate-stamp-in">
                   Routed
                 </span>
               ) : (
@@ -273,6 +271,10 @@ function DemoBoard() {
 }
 
 function Hero() {
+  const { data: session } = useSession();
+  const isClient = session?.user?.role === "client";
+  const workspaceHref = isClient ? "/client/tickets" : "/dashboard/overview";
+
   return (
     <section data-animate="hero" className="relative overflow-hidden" style={GLOW_BG}>
       <div className="pointer-events-none absolute inset-0" style={GRID_BG} aria-hidden />
@@ -282,7 +284,7 @@ function Hero() {
             Every request,
             <br />
             one queue.
-            <span className="text-[#4F90F8]"> Work it.</span>
+            <span className="text-[#C4A7FF]"> Work it.</span>
           </h1>
           <p data-animate="hero-line" className="mt-7 max-w-[38rem] text-[1.1875rem] leading-relaxed text-zinc-400">
             Requests die in inboxes. TicketFlow is the desk they land on instead —
@@ -290,20 +292,32 @@ function Hero() {
             people who need the answer.
           </p>
           <div data-animate="hero-cta" className="mt-9 flex flex-wrap items-center gap-3">
-            <Link
-              href="/signup"
-              className="group inline-flex items-center gap-2 rounded-md bg-[#4F90F8] px-5 py-3 text-[0.9375rem] font-semibold text-zinc-900 transition-colors hover:bg-[#6FA6FA]"
-            >
-              Create your desk
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
-            </Link>
-            <Link
-              href="/login"
-              className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-5 py-3 text-[0.9375rem] font-semibold text-zinc-100 transition-colors hover:border-zinc-500"
-            >
-              Sign in
-            </Link>
-            <p className="ml-1 hidden font-mono text-xs text-zinc-400 sm:block">free while you evaluate</p>
+            {session?.user ? (
+              <Link
+                href={workspaceHref}
+                className="group inline-flex items-center gap-2 rounded-md bg-[#C4A7FF] px-5 py-3 text-[0.9375rem] font-semibold text-[#120A20] transition-colors hover:bg-[#B593FF]"
+              >
+                Go to Workspace
+                <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+              </Link>
+            ) : (
+              <>
+                <Link
+                  href="/signup"
+                  className="group inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-[0.9375rem] font-semibold text-[#121212] transition-colors hover:bg-[#E9E7E8]"
+                >
+                  Create your desk
+                  <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
+                </Link>
+                <Link
+                  href="/login"
+                  className="inline-flex items-center gap-2 rounded-md border border-zinc-700 px-5 py-3 text-[0.9375rem] font-semibold text-zinc-100 transition-colors hover:border-zinc-500"
+                >
+                  Sign in
+                </Link>
+                <p className="ml-1 hidden font-mono text-xs text-zinc-400 sm:block">free while you evaluate</p>
+              </>
+            )}
           </div>
         </div>
 
@@ -389,14 +403,14 @@ function RoutingVisual() {
               className={cn(
                 "w-full rounded-lg border p-3.5 text-left transition-colors",
                 selected === i
-                  ? "border-[#4F90F8]/40 bg-[#4F90F8]/[0.06]"
+                  ? "border-[#C4A7FF]/40 bg-[#C4A7FF]/[0.06]"
                   : "border-zinc-800 bg-zinc-800/20 hover:border-zinc-700"
               )}
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="font-mono text-xs text-zinc-400">{t.tn}</span>
                 {selected === i && (
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4F90F8]/15 px-2 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-[#4F90F8]">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C4A7FF]/15 px-2 py-0.5 font-mono text-[0.625rem] font-semibold uppercase tracking-[0.12em] text-[#C4A7FF]">
                     <Zap className="h-2.5 w-2.5" aria-hidden /> Routed
                   </span>
                 )}
@@ -414,7 +428,7 @@ function RoutingVisual() {
           <div className="rounded-xl border border-zinc-800 bg-zinc-800/40 p-5" style={GRID_BG}>
             <div className="flex items-center justify-between gap-3 border-b border-zinc-700/60 pb-3">
               <div className="flex items-center gap-2.5">
-                <span className="grid h-7 w-7 place-items-center rounded-md bg-[#4F90F8]/15 text-[#4F90F8]">
+                <span className="grid h-7 w-7 place-items-center rounded-md bg-[#C4A7FF]/15 text-[#C4A7FF]">
                   <Cpu className="h-4 w-4" aria-hidden />
                 </span>
                 <div>
@@ -434,7 +448,7 @@ function RoutingVisual() {
               <div className="mt-3 flex items-center gap-2 font-mono text-xs">
                 <span className="rounded border border-zinc-700 bg-zinc-900 px-2 py-1 text-zinc-300">{INCOMING[selected].tn}</span>
                 <ArrowRight className="h-3.5 w-3.5 text-zinc-600" aria-hidden />
-                <span className="rounded border border-[#4F90F8]/40 bg-[#4F90F8]/10 px-2 py-1 text-[#4F90F8]">{INCOMING[selected].to}</span>
+                <span className="rounded border border-[#C4A7FF]/40 bg-[#C4A7FF]/10 px-2 py-1 text-[#C4A7FF]">{INCOMING[selected].to}</span>
               </div>
             </div>
 
@@ -448,7 +462,7 @@ function RoutingVisual() {
                   <dd
                     className={cn(
                       "col-start-2 row-span-2 justify-self-end whitespace-nowrap rounded-full px-2.5 py-0.5 font-mono text-xs font-medium sm:col-start-auto sm:row-span-1",
-                      r.active ? "bg-[#4F90F8]/15 text-[#4F90F8]" : "bg-zinc-800/70 text-zinc-400"
+                      r.active ? "bg-[#C4A7FF]/15 text-[#C4A7FF]" : "bg-zinc-800/70 text-zinc-400"
                     )}
                   >
                     {r.active ? "on" : "off"}
@@ -538,7 +552,7 @@ function FeatureFolder({ f, index }: { f: (typeof FEATURE_FOLDERS)[number]; inde
             : "border-zinc-800 bg-zinc-900/60 text-zinc-500 hover:text-zinc-300"
         )}
       >
-        <Icon className="h-3.5 w-3.5 text-[#4F90F8]" aria-hidden />
+        <Icon className="h-3.5 w-3.5 text-[#C4A7FF]" aria-hidden />
         {f.tab}
       </button>
 
@@ -553,7 +567,7 @@ function FeatureFolder({ f, index }: { f: (typeof FEATURE_FOLDERS)[number]; inde
           <div
             className={cn(
               "rounded-lg rounded-tl-none border border-zinc-700 bg-zinc-800/80 p-5 shadow-lg shadow-black/20 transition-colors",
-              "group-hover:border-[#4F90F8]/30"
+              "group-hover:border-[#C4A7FF]/30"
             )}
           >
             <h3 className="font-display text-lg font-semibold tracking-tight text-zinc-100">{f.title}</h3>
@@ -561,7 +575,7 @@ function FeatureFolder({ f, index }: { f: (typeof FEATURE_FOLDERS)[number]; inde
             <ul className="mt-3 space-y-1.5">
               {f.chips.map((c) => (
                 <li key={c} className="flex items-start gap-2 text-sm text-zinc-300">
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#4F90F8]" aria-hidden />
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C4A7FF]" aria-hidden />
                   {c}
                 </li>
               ))}
@@ -618,7 +632,7 @@ function RolesSection() {
             <ul className="flex flex-wrap gap-x-6 gap-y-1.5 text-[0.9375rem] text-zinc-400">
               {r.gets.map((g) => (
                 <li key={g} className="flex gap-2">
-                  <span aria-hidden="true" className="text-[#4F90F8]">—</span>
+                  <span aria-hidden="true" className="text-[#C4A7FF]">—</span>
                   {g}
                 </li>
               ))}
@@ -666,7 +680,7 @@ function Pricing() {
               data-animate="price-card"
               className={cn(
                 "rounded-xl border p-6",
-                p.featured ? "border-[#4F90F8]/30 bg-[#4F90F8]/[0.04]" : "border-zinc-800 bg-zinc-800/20"
+                p.featured ? "border-[#C4A7FF]/30 bg-[#C4A7FF]/[0.04]" : "border-zinc-800 bg-zinc-800/20"
               )}
             >
               <div className="flex items-baseline justify-between gap-3">
@@ -679,7 +693,7 @@ function Pricing() {
               <ul className="mt-5 space-y-2 text-sm text-zinc-300">
                 {p.list.map((l) => (
                   <li key={l} className="flex gap-2">
-                    <Check className="h-3.5 w-3.5 shrink-0 text-[#4F90F8]" aria-hidden />
+                    <Check className="h-3.5 w-3.5 shrink-0 text-[#C4A7FF]" aria-hidden />
                     {l}
                   </li>
                 ))}
@@ -689,7 +703,7 @@ function Pricing() {
                 className={cn(
                   "mt-6 inline-flex items-center justify-center gap-1.5 rounded-md px-4 py-2 text-sm font-semibold transition-colors",
                   p.featured
-                    ? "bg-[#4F90F8] text-zinc-900 hover:bg-[#6FA6FA]"
+                    ? "bg-white text-[#121212] hover:bg-[#E9E7E8]"
                     : "border border-zinc-700 text-zinc-100 hover:border-zinc-500"
                 )}
               >
@@ -711,7 +725,7 @@ function Cta() {
       <div className="pointer-events-none absolute inset-0" style={GRID_BG} aria-hidden />
       <div className="mx-auto max-w-6xl scroll-mt-20 px-5 py-20 sm:px-6 sm:py-28">
         <div data-animate="cta-block" className="max-w-[38rem]">
-          <p data-animate="cta-block" className="font-mono text-[0.8125rem] uppercase tracking-[0.16em] text-[#4F90F8]">Get started</p>
+          <p data-animate="cta-block" className="font-mono text-[0.8125rem] uppercase tracking-[0.16em] text-[#C4A7FF]">Get started</p>
           <h2 data-animate="cta-block" className="mt-3 font-display text-[clamp(2rem,4.5vw,3rem)] font-bold leading-tight tracking-[-0.025em] text-zinc-100">
             Open your desk before the coffee cools
           </h2>
@@ -721,7 +735,7 @@ function Cta() {
           <div data-animate="cta-block" className="mt-9 flex flex-wrap gap-3">
             <Link
               href="/signup"
-              className="group inline-flex items-center gap-2 rounded-md bg-[#4F90F8] px-5 py-3 text-[0.9375rem] font-semibold text-zinc-900 transition-colors hover:bg-[#6FA6FA]"
+              className="group inline-flex items-center gap-2 rounded-md bg-white px-5 py-3 text-[0.9375rem] font-semibold text-[#121212] transition-colors hover:bg-[#E9E7E8]"
             >
               Create your desk
               <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" aria-hidden />
@@ -745,7 +759,7 @@ function Footer() {
     <footer className="border-t border-zinc-800">
       <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-x-6 gap-y-4 px-5 py-8 sm:px-6">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-[22px] w-[22px] place-items-center rounded-md bg-[#4F90F8] font-display text-[11px] font-bold text-zinc-900">T</span>
+          <span className="grid h-[22px] w-[22px] place-items-center rounded-md bg-[#C4A7FF] font-display text-[11px] font-bold text-[#120A20]">T</span>
           <span className="font-display text-[0.9375rem] font-semibold text-zinc-100">TicketFlow</span>
         </div>
         <nav className="flex gap-6 text-sm text-zinc-400" aria-label="Footer">
@@ -763,7 +777,7 @@ function Footer() {
 export default function Landing() {
   useLandingGsap();
   return (
-    <div className="min-h-screen bg-[#18181b] font-sans text-zinc-100 antialiased" style={NOISE}>
+    <div className="dark min-h-screen bg-[#0E0A14] font-sans text-zinc-100 antialiased" data-color-theme="purple" style={NOISE}>
       <Header />
       <main>
         <Hero />

@@ -119,8 +119,14 @@ test("rejects EXE declared as image/png", () => {
 test("accepts real ZIP declared as application/zip", () => {
   assert.ok(attachmentMimeAllowed("application/zip", ZIP));
 });
+test("accepts real ZIP declared as application/x-zip-compressed (Windows)", () => {
+  assert.ok(attachmentMimeAllowed("application/x-zip-compressed", ZIP));
+});
 test("rejects EXE declared as application/zip", () => {
   assert.ok(!attachmentMimeAllowed("application/zip", EXE));
+});
+test("rejects EXE declared as application/x-zip-compressed", () => {
+  assert.ok(!attachmentMimeAllowed("application/x-zip-compressed", EXE));
 });
 test("rejects unknown binary type", () => {
   assert.ok(!attachmentMimeAllowed("application/octet-stream", EXE));

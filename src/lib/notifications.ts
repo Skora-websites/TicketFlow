@@ -36,15 +36,17 @@ export async function notify(
     // delivery must never block or fail ticket operations.
     try {
       const users = await User.find({ _id: { $in: ids } })
-        .select("_id email")
+        .select("_id email role")
         .lean();
       for (const u of users) {
         if (u.email) {
           void sendTicketNotificationEmail(u.email, {
+            ticketId: payload.ticketId,
             ticketNumber: payload.ticketNumber,
             title: payload.title,
             body: payload.body,
             type: payload.type,
+            role: (u as { role?: string }).role,
           });
         }
       }

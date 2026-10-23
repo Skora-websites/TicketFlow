@@ -5,6 +5,8 @@ import { useParams } from "next/navigation";
 import { TicketDetail } from "@/components/tickets";
 import type { ChatParticipant } from "@/components/tickets/ConversationPanel";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ArrowLeft, AlertTriangle, TicketCheck } from "lucide-react";
 import Link from "next/link";
 import type { ITicket, IComment, IUser } from "@/lib/db/models";
@@ -42,7 +44,15 @@ export function ClientTicketDetailPage() {
       const userData = await userRes.json();
 
       setTicket(ticketData.ticket);
-      setComments(commentsData.comments || []);
+      const rawComments = (commentsData.comments || []) as (IComment & { authorId?: IUser })[];
+      const seen = new Set<string>();
+      const dedupedComments = rawComments.filter((c) => {
+        const idStr = c._id?.toString();
+        if (!idStr || seen.has(idStr)) return false;
+        seen.add(idStr);
+        return true;
+      });
+      setComments(dedupedComments);
       setChatParticipants(ticketData.chatParticipants ?? []);
       setCurrentUser(userData.user);
     } catch (err) {
@@ -84,7 +94,15 @@ export function ClientTicketDetailPage() {
       throw new Error(err.error || "Failed to send message");
     }
     const data = await res.json();
-    setComments((prev) => [...prev, data.comment]);
+    if (data.comment) {
+      setComments((prev) => {
+        const idStr = data.comment._id?.toString();
+        if (idStr && prev.some((c) => c._id?.toString() === idStr)) {
+          return prev;
+        }
+        return [...prev, data.comment];
+      });
+    }
   };
 
   // Live updates for the client portal too — the conversation feels shared.
@@ -105,7 +123,12 @@ export function ClientTicketDetailPage() {
           if (incoming.length) {
             setComments((prev) => {
               const seen = new Set(prev.map((c) => c._id?.toString()));
-              const fresh = incoming.filter((c) => !seen.has(c._id?.toString()));
+              const fresh = incoming.filter((c) => {
+                const idStr = c._id?.toString();
+                if (!idStr || seen.has(idStr)) return false;
+                seen.add(idStr);
+                return true;
+              });
               return fresh.length ? [...prev, ...fresh] : prev;
             });
           }
@@ -122,35 +145,78 @@ export function ClientTicketDetailPage() {
   if (isLoading) {
     return (
       <div className="space-y-6" aria-label="Loading ticket" aria-busy="true">
-        <div className="flex items-center gap-4">
-          <div className="h-12 w-12 rounded bg-muted" />
-          <div className="flex-1 space-y-2">
-            <div className="h-6 w-1/3 rounded bg-muted" />
-            <div className="h-4 w-1/2 rounded bg-muted" />
-          </div>
-        </div>
-        {/* Matches the detail layout: main column + 320px sidebar */}
-        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_320px]">
-          <div className="space-y-6">
-            <div className="h-64 rounded-xl bg-muted" />
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex gap-3">
-                  <div className="h-8 w-8 rounded-full bg-muted" />
-                  <div className="h-12 flex-1 rounded-xl bg-muted" />
-                </div>
-              ))}
+        {/* Header */}
+        <div>
+          <Skeleton className="mb-4 h-5 w-28 rounded-md" />
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <Skeleton className="h-8 w-24 rounded-lg" />
+              <Skeleton className="h-8 w-64 sm:w-96 rounded-lg" />
             </div>
           </div>
-          <div className="hidden space-y-4 lg:block">
-            <div className="h-10 rounded-lg bg-muted" />
-            <div className="space-y-3 rounded-xl border border-border p-4">
-              {[1, 2, 3, 4, 5].map((i) => (
-                <div key={i} className="flex items-center justify-between">
-                  <div className="h-3 w-16 rounded bg-muted" />
-                  <div className="h-3 w-24 rounded bg-muted" />
+          {/* Meta row for client */}
+          <div className="mt-3 flex flex-wrap items-center gap-3">
+            <Skeleton className="h-5 w-20 rounded-full" />
+            <Skeleton className="h-5 w-24 rounded-full" />
+            <Skeleton className="h-5 w-32 rounded-full" />
+          </div>
+        </div>
+
+        {/* Client single-column main content (clients have no sidebar) */}
+        <div className="space-y-6">
+          {/* Description card */}
+          <Card>
+            <CardHeader>
+              <Skeleton className="h-5 w-28 rounded-md" />
+            </CardHeader>
+            <CardContent className="space-y-2">
+              <Skeleton className="h-4 w-full rounded" />
+              <Skeleton className="h-4 w-5/6 rounded" />
+              <Skeleton className="h-4 w-2/3 rounded" />
+            </CardContent>
+          </Card>
+
+          {/* Conversation section */}
+          <div className="border-t border-border pt-6 space-y-4">
+            <div className="flex items-center justify-between">
+              <Skeleton className="h-6 w-32 rounded-md" />
+              <Skeleton className="h-4 w-24 rounded-md" />
+            </div>
+
+            {/* Messages thread */}
+            <div className="space-y-4 rounded-xl border border-border/60 bg-secondary/10 p-4">
+              {/* Customer bubble (left) */}
+              <div className="flex items-start gap-3">
+                <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+                <div className="space-y-1.5 flex-1 max-w-[80%]">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3.5 w-24 rounded" />
+                    <Skeleton className="h-3 w-16 rounded" />
+                  </div>
+                  <Skeleton className="h-16 w-full rounded-2xl rounded-tl-xs" />
                 </div>
-              ))}
+              </div>
+
+              {/* Agent bubble (right) */}
+              <div className="flex items-start justify-end gap-3">
+                <div className="space-y-1.5 flex-1 max-w-[80%] flex flex-col items-end">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-16 rounded" />
+                    <Skeleton className="h-3.5 w-20 rounded" />
+                  </div>
+                  <Skeleton className="h-14 w-full rounded-2xl rounded-tr-xs" />
+                </div>
+                <Skeleton className="h-8 w-8 shrink-0 rounded-full" />
+              </div>
+            </div>
+
+            {/* Composer input box */}
+            <div className="rounded-xl border border-border bg-card p-3 space-y-2">
+              <Skeleton className="h-20 w-full rounded-lg" />
+              <div className="flex items-center justify-between pt-1">
+                <Skeleton className="h-7 w-20 rounded-md" />
+                <Skeleton className="h-8 w-24 rounded-xl" />
+              </div>
             </div>
           </div>
         </div>

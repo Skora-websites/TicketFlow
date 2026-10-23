@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { UserAvatar } from "./badges";
 import type { IComment as CommentModel, IUser as UserType } from "@/lib/db/models";
 import { Download, Pencil, Trash2, X, Check, Paperclip } from "lucide-react";
@@ -160,12 +160,22 @@ export function CommentThread({
     setFormError("");
   };
 
+  const displayComments = useMemo(() => {
+    const seen = new Set<string>();
+    return comments.filter((c) => {
+      const id = c?._id?.toString();
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [comments]);
+
   return (
     <div className="space-y-4">
       {/* Case log — chronological record, not a chat. Every entry reads the
           same left-to-right: who, when, what. No mirrored bubbles. */}
       <div className="divide-y divide-border border-y border-border">
-        {comments.map((comment, i) => {
+        {displayComments.map((comment, i) => {
           const author = comment.authorId as UserType | undefined;
           const isOwn = author?._id?.toString() === currentUserId;
           const hasAttachment = !!comment.attachment;

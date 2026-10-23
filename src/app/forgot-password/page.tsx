@@ -37,7 +37,7 @@ export default function ForgotPasswordPage() {
   }
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
+    <div className="dark min-h-screen grid lg:grid-cols-2 bg-background text-foreground" data-color-theme="purple">
       <AuthBrandPanel />
       <main className="flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">

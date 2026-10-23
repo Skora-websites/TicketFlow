@@ -18,23 +18,35 @@ export async function GET() {
     // themselves. super_admin sees everything.
     const scopedDeptId = actor.role === "super_admin" ? null : actor.departmentId ?? "__none__";
 
-    const availability = await AgentAvailability.find({}).lean();
+    const userFilter: Record<string, unknown> = {
+      role: { $in: ["team", "manager"] },
+      active: true,
+    };
+    if (scopedDeptId === "__none__") {
+      userFilter._id = new mongoose.Types.ObjectId(actor.id);
+    } else if (scopedDeptId && mongoose.Types.ObjectId.isValid(scopedDeptId)) {
+      userFilter.departmentId = new mongoose.Types.ObjectId(scopedDeptId);
+    }
 
     // Every active team/manager user is a candidate agent, whether or not an
     // availability record exists yet (defaults are materialized below).
-    const users = await User.find({
-      role: { $in: ["team", "manager"] },
-      active: true,
-    })
+    const users = await User.find(userFilter)
       .select("_id name email role departmentId")
       .populate("departmentId", "name color")
       .lean();
 
-    const departments = await Department.find(
-      scopedDeptId ? { _id: scopedDeptId } : {}
-    )
-      .select("name color")
-      .lean();
+    const userIds = users.map((u) => u._id);
+
+    const [availability, departments] = await Promise.all([
+      AgentAvailability.find({ userId: { $in: userIds } }).lean(),
+      Department.find(
+        scopedDeptId && scopedDeptId !== "__none__" && mongoose.Types.ObjectId.isValid(scopedDeptId)
+          ? { _id: scopedDeptId }
+          : {}
+      )
+        .select("name color")
+        .lean(),
+    ]);
 
     // Ensure every active team/manager user has an availability record.
     // This GET is read-only: missing records are materialized as defaults in
@@ -57,22 +69,12 @@ export async function GET() {
     });
 
     const loadAgg = await Ticket.aggregate([
-      { $match: { assigneeId: { $in: users.map((u) => u._id) }, status: { $in: ["open", "in_progress", "on_hold"] } } },
+      { $match: { assigneeId: { $in: userIds }, status: { $in: ["open", "in_progress", "on_hold"] } } },
       { $group: { _id: "$assigneeId", count: { $sum: 1 } } },
     ]);
     const loadMap = new Map(loadAgg.map((l: { _id: mongoose.Types.ObjectId; count: number }) => [l._id.toString(), l.count]));
 
-    const visibleUsers = users.filter((u: any) => {
-      if (scopedDeptId === null) return true; // super_admin
-      const uDept = u.departmentId && typeof u.departmentId === "object"
-        ? (u.departmentId as any)._id?.toString()
-        : u.departmentId?.toString();
-      if (scopedDeptId === "__none__") {
-        // Dept-less actor: only their own record.
-        return u._id.toString() === actor.id;
-      }
-      return uDept === scopedDeptId;
-    });
+    const visibleUsers = users;
 
     const result = visibleUsers.map((u: any) => {
       const av = updatedAvailability.find((a) => a.userId.toString() === u._id.toString());

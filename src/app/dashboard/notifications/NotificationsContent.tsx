@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { Bell, Trash2, CheckCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -96,11 +97,18 @@ export function NotificationsContent() {
         </CardHeader>
         <CardContent>
           {isLoading ? (
-            <div className="space-y-3 animate-pulse">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="h-16 bg-muted rounded-lg" />
+            <ul className="divide-y divide-border" aria-label="Loading notifications" aria-busy="true">
+              {[1, 2, 3, 4].map((i) => (
+                <li key={i} className="flex items-start gap-3 py-3">
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <Skeleton className="h-4 w-1/3 rounded" />
+                    <Skeleton className="h-3.5 w-3/4 rounded" />
+                    <Skeleton className="h-3 w-48 rounded" />
+                  </div>
+                  <Skeleton className="h-8 w-8 rounded-lg" />
+                </li>
               ))}
-            </div>
+            </ul>
           ) : error ? (
             <p className="text-sm text-destructive">{error}</p>
           ) : items.length === 0 ? (

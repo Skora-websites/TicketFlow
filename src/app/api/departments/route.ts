@@ -2,11 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db/mongo";
 import { Department } from "@/lib/db/models";
 import { requireApiRole, sanitizeSearch, escapeRegExp } from "@/lib/authz";
+import { enforceRateLimit, DB_QUERY_MAX_TIME_MS } from "@/lib/security";
 import { z } from "zod";
 
 const departmentQuerySchema = z.object({
   page: z.coerce.number().positive().default(1),
-  limit: z.coerce.number().positive().max(100).default(20),
+  limit: z.coerce.number().positive().max(50).default(20),
   search: z.string().optional(),
 });
 
@@ -47,8 +48,8 @@ export async function GET(request: NextRequest) {
     }
 
     const [departments, total] = await Promise.all([
-      Department.find(filter).sort({ name: 1 }).skip(skip).limit(limit).lean(),
-      Department.countDocuments(filter),
+      Department.find(filter).sort({ name: 1 }).skip(skip).limit(limit).maxTimeMS(DB_QUERY_MAX_TIME_MS).lean(),
+      Department.countDocuments(filter).maxTimeMS(DB_QUERY_MAX_TIME_MS),
     ]);
 
     return NextResponse.json({
@@ -73,6 +74,12 @@ export async function POST(request: NextRequest) {
   try {
     const authResult = await requireApiRole("super_admin");
     if (authResult instanceof NextResponse) return authResult;
+    const user = authResult;
+
+    // Rate Limit: 20 department creations / min
+    const rateCheck = await enforceRateLimit(`dept:create:${user.id}`, 20, 60_000);
+    if (rateCheck) return rateCheck;
+
     await connectDB();
 
     const body = await request.json();

@@ -1,5 +1,5 @@
 export { StatusBadge, PriorityBadge, CategoryBadge, DepartmentBadge, UserAvatar, TicketNumber, TransferStatusBadge } from "./badges";
-export { TicketCard, TicketList, ticketHref } from "./TicketCard";
+export { TicketCard, TicketList, ticketHref, TicketCardSkeleton } from "./TicketCard";
 export { CommentThread } from "./CommentThread";
 export { TicketDetail } from "./TicketDetail";
 export { TicketForm } from "./TicketForm";

@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { ticketHref, UserAvatar, StatusBadge, PriorityBadge, CategoryBadge, TicketNumber } from "@/components/tickets";
 import { formatDistanceToNow } from "date-fns";
 import { TRANSFERS_ENABLED } from "@/lib/features";
@@ -179,25 +180,44 @@ export function QueueContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6" aria-label="Loading queue" aria-busy="true">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="h-8 bg-muted rounded w-1/4 mb-2" />
-            <div className="h-4 bg-muted rounded w-1/3" />
+            <Skeleton className="h-8 w-48 rounded-md mb-1.5" />
+            <Skeleton className="h-4 w-64 rounded-md" />
           </div>
         </div>
-        <div className="space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3 p-4 border-b border-border">
-              <div className="w-8 h-8 rounded bg-muted flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-muted rounded w-1/4" />
-                <div className="h-3 bg-muted rounded w-1/2" />
-              </div>
-              <div className="w-24 h-6 bg-muted rounded" />
-            </div>
-          ))}
-        </div>
+
+        {/* Queue List Card */}
+        <Card className="card-elevated">
+          <CardContent className="p-0">
+            <ul className="divide-y divide-border/60">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <li
+                  key={i}
+                  className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:gap-4"
+                >
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <Skeleton className="h-5 w-16 rounded" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                      <Skeleton className="hidden sm:inline-flex h-5 w-20 rounded-full" />
+                    </div>
+                    <Skeleton className="mt-2 h-4 w-3/5 rounded" />
+                    <div className="mt-2 flex items-center gap-2">
+                      <Skeleton className="h-4 w-16 rounded" />
+                      <Skeleton className="h-3 w-20 rounded font-mono" />
+                    </div>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3 w-full sm:w-auto">
+                    <Skeleton className="h-9 sm:h-8 w-full sm:w-24 rounded-md" />
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -328,19 +348,19 @@ export function QueueContent() {
                         </span>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
+                    <div className="flex shrink-0 items-center gap-3 w-full sm:w-auto">
                       {assignee ? (
                         <UserAvatar name={assignee.name} role={assignee.role as any} size="sm" />
                       ) : (
                         <>
                           <Button
                             size="sm"
-                            variant="outline"
+                            variant="default"
                             onClick={() => {
                               setSelectedTicketId(ticket._id);
                               setSelectedAssigneeId("");
                             }}
-                            className="gap-2"
+                            className="w-full sm:w-auto gap-2 h-9 sm:h-8 font-semibold"
                           >
                             <UserPlus className="h-4 w-4" aria-hidden />
                             {isSuperAdmin ? "Forward" : "Assign"}
@@ -363,7 +383,7 @@ export function QueueContent() {
                                 <div className="flex items-center justify-end gap-1">
                                   <Button
                                     size="sm"
-                                    variant="ghost"
+                                    variant="outline"
                                     disabled={busyId === ticket._id}
                                     onClick={() => {
                                       setConfirmDenyId(null);
@@ -386,10 +406,10 @@ export function QueueContent() {
                             ) : (
                               <Button
                                 size="sm"
-                                variant="ghost"
+                                variant="destructive-outline"
                                 disabled={busyId === ticket._id}
                                 onClick={() => setConfirmDenyId(ticket._id)}
-                                className="gap-1.5 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                                className="gap-1.5"
                               >
                                 <X className="h-3.5 w-3.5" aria-hidden />
                                 Deny

@@ -8,13 +8,18 @@ import { notify } from "@/lib/notifications";
 import { publishTicketEvent } from "@/lib/events";
 import { stripCommentAttachmentData } from "@/lib/attachments";
 import { putAttachment, deleteAttachment } from "@/lib/attachments-store";
-import { checkRate } from "@/lib/rateLimit";
+import {
+  checkRateLimit,
+  rateLimitResponse,
+  canUploadAttachment,
+  recordAttachmentUploaded,
+  DB_QUERY_MAX_TIME_MS,
+} from "@/lib/security";
 import { z } from "zod";
 import mongoose from "mongoose";
 
-// ponytail: inline Buffer storage; swap to GridFS/object storage when file sizes grow.
 const commentsQuerySchema = z.object({
-  limit: z.coerce.number().int().positive().max(200).default(50),
+  limit: z.coerce.number().int().positive().max(50).default(50),
   before: z.string().optional(), // ISO cursor — comments created before this
   after: z.string().optional(), // ISO cursor — comments created after this (polling)
   order: z.enum(["asc", "desc"]).default("asc"),
@@ -80,16 +85,23 @@ export async function GET(
       const newComments = await Comment.find(commentFilter)
         .sort({ createdAt: 1 })
         .limit(query.limit)
-        .populate("authorId", "name email role")
+        .populate("authorId", "name email role avatar")
         .lean();
 
-      // Reading the conversation advances this user's read marker (drives
-      // unread badges + ✓✓). Fire-and-forget.
+      // Reading the conversation advances this user's read marker and marks
+      // messages from other participants as delivered. Fire-and-forget.
+      const now = new Date();
       void TicketReadState.updateOne(
         { userId: user.id, ticketId: id },
-        { $set: { lastReadAt: new Date() } },
+        { $set: { lastReadAt: now } },
         { upsert: true }
       ).exec();
+      void Comment.updateMany(
+        { ticketId: id, authorId: { $ne: new mongoose.Types.ObjectId(user.id) }, deliveredAt: null },
+        { $set: { deliveredAt: now } }
+      ).exec().then((res) => {
+        if (res.modifiedCount > 0) publishTicketEvent(id, "read");
+      });
 
       return NextResponse.json({
         comments: (newComments as unknown as Record<string, unknown>[]).map(stripCommentAttachmentData),
@@ -105,25 +117,33 @@ export async function GET(
     const comments = await Comment.find(commentFilter)
       .sort({ createdAt: -1 })
       .limit(query.limit)
-      .populate("authorId", "name email role")
+      .maxTimeMS(DB_QUERY_MAX_TIME_MS)
+      .populate("authorId", "name email role avatar")
       .lean();
 
     comments.reverse(); // display oldest→newest
     if (query.order === "desc") comments.reverse();
 
     const [total, filteredTotal] = await Promise.all([
-      Comment.countDocuments({ ticketId: id, ...(isClientViewer ? { visibility: "public" } : {}) }),
-      Comment.countDocuments(commentFilter),
+      Comment.countDocuments({ ticketId: id, ...(isClientViewer ? { visibility: "public" } : {}) }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
+      Comment.countDocuments(commentFilter).maxTimeMS(DB_QUERY_MAX_TIME_MS),
     ]);
     const oldestReturned = comments.length ? (comments[0] as { createdAt: Date }).createdAt : null;
     const hasMore = filteredTotal > comments.length; // older comments exist
 
-    // Initial load also advances the read marker.
+    // Initial load also advances the read marker and marks others' messages as delivered.
+    const now = new Date();
     void TicketReadState.updateOne(
       { userId: user.id, ticketId: id },
-      { $set: { lastReadAt: new Date() } },
+      { $set: { lastReadAt: now } },
       { upsert: true }
     ).exec();
+    void Comment.updateMany(
+      { ticketId: id, authorId: { $ne: new mongoose.Types.ObjectId(user.id) }, deliveredAt: null },
+      { $set: { deliveredAt: now } }
+    ).exec().then((res) => {
+      if (res.modifiedCount > 0) publishTicketEvent(id, "read");
+    });
 
     return NextResponse.json({
       comments: (comments as unknown as Record<string, unknown>[]).map(stripCommentAttachmentData),
@@ -202,15 +222,10 @@ export async function POST(
       );
     }
 
-    // Per-user flood ceiling for conversation posts (proxy.ts only guards
-    // /api/auth/*). 30/min/user across all tickets. Runtime-core limiter is
-    // async (Redis-compatible); in-memory driver resolves immediately.
-    const limited = await checkRate(`comments:${user.id}`, 30, 60_000);
-    if (limited) {
-      return NextResponse.json(
-        { error: "Too many messages. Slow down a little." },
-        { status: 429, headers: { "Retry-After": "30" } }
-      );
+    // Per-user flood ceiling for conversation posts: 30/min/user across all tickets
+    const rateCheck = await checkRateLimit(`comments:${user.id}`, 30, 60_000);
+    if (rateCheck.limited) {
+      return rateLimitResponse(rateCheck, "Too many messages. Slow down a little.");
     }
 
     // Internal notes: staff-only. Clients physically cannot set the flag —
@@ -248,6 +263,26 @@ export async function POST(
       visibility,
     };
 
+    // Guard against rapid duplicate submissions (e.g. double click or network retry)
+    if (!file) {
+      const recentDuplicate = await Comment.findOne({
+        ticketId: new mongoose.Types.ObjectId(id),
+        authorId: new mongoose.Types.ObjectId(user.id),
+        body: commentData.body as string,
+        visibility,
+        createdAt: { $gt: new Date(Date.now() - 3000) },
+      })
+        .populate("authorId", "name email role avatar")
+        .lean();
+
+      if (recentDuplicate) {
+        return NextResponse.json(
+          { comment: stripCommentAttachmentData(recentDuplicate) },
+          { status: 200 }
+        );
+      }
+    }
+
     if (file && file.size > 0) {
       if (file.size > MAX_ATTACHMENT_BYTES) {
         return NextResponse.json({ error: "Attachment must be under 4MB" }, { status: 400 });
@@ -255,6 +290,12 @@ export async function POST(
       if (!ALLOWED_ATTACHMENT_MIMES.has(file.type)) {
         return NextResponse.json({ error: "Unsupported file type" }, { status: 400 });
       }
+      // Storage Quota Guard: check daily upload quota and database safety ceiling
+      const storageCheck = await canUploadAttachment(user.id, file.size);
+      if (!storageCheck.allowed) {
+        return NextResponse.json({ error: storageCheck.reason || "Storage quota exceeded" }, { status: 400 });
+      }
+
       const buffer = Buffer.from(await file.arrayBuffer());
       if (!attachmentMimeAllowed(file.type, buffer)) {
         return NextResponse.json({ error: "File content does not match its type" }, { status: 400 });
@@ -268,6 +309,7 @@ export async function POST(
           filename: file.name.slice(0, 255),
           mime: file.type,
         });
+        await recordAttachmentUploaded(user.id, file.size);
         commentData.attachment = {
           name: file.name.slice(0, 255),
           mime: file.type,
@@ -293,41 +335,8 @@ export async function POST(
     // Real-time: wake every open SSE stream for this ticket.
     publishTicketEvent(id, "comment");
 
-    // Delivery receipts (✓ → ✓✓ grey): the message is "delivered" once every
-    // OTHER participant's client has been pushed it (live stream or initial
-    // GET). Best-effort — with no open streams the next GET/SSE open marks it.
-    // Fired after publish so streams opened "now" count as delivered-to.
-    setImmediate(() => {
-      void (async () => {
-        try {
-          const others: string[] = [];
-          const requesterId = ticket.requesterId.toString();
-          const assigneeIdStr = ticket.assigneeId?.toString();
-          const deptMgr = ticket.departmentId
-            ? await User.findOne({ role: "manager", departmentId: ticket.departmentId, active: true }).select("_id").lean()
-            : null;
-          for (const pid of [requesterId, assigneeIdStr, deptMgr?._id?.toString()]) {
-            if (pid && pid !== user.id) others.push(pid);
-          }
-          if (others.length) {
-            const now = new Date();
-            await Promise.all([
-              TicketReadState.updateMany(
-                { ticketId: id, userId: { $in: others }, lastReadAt: { $gte: now } },
-                { $set: { lastReadAt: now } }
-              ).exec(),
-              Comment.updateMany(
-                { ticketId: id, authorId: new mongoose.Types.ObjectId(user.id), kind: "message", deliveredAt: null },
-                { $set: { deliveredAt: now } }
-              ).exec(),
-            ]);
-            publishTicketEvent(id, "read");
-          }
-        } catch {
-          // receipts are best-effort
-        }
-      })();
-    });
+    // Delivery receipts are marked when recipients actively fetch the comment
+    // via GET /api/tickets/[id]/comments or receive it through active SSE stream.
 
     // Notify the other chat participants (sender, manager, assignee) about
     // the new message — but never about internal notes (clients must not
@@ -373,7 +382,7 @@ export async function POST(
     }
 
     const populatedComment = await Comment.findById(comment._id)
-      .populate("authorId", "name email role")
+      .populate("authorId", "name email role avatar")
       .lean();
 
     return NextResponse.json({ comment: stripCommentAttachmentData(populatedComment) }, { status: 201 });

@@ -100,11 +100,25 @@ export async function PATCH(
     }
 
     const update: Record<string, unknown> = { ...parsed.data };
-    if (parsed.data.fallbackAssigneeId) {
-      update.fallbackAssigneeId = new mongoose.Types.ObjectId(parsed.data.fallbackAssigneeId);
+    if (parsed.data.fallbackAssigneeId !== undefined) {
+      if (parsed.data.fallbackAssigneeId) {
+        if (!mongoose.Types.ObjectId.isValid(parsed.data.fallbackAssigneeId)) {
+          return NextResponse.json({ error: "Invalid fallback assignee" }, { status: 400 });
+        }
+        update.fallbackAssigneeId = new mongoose.Types.ObjectId(parsed.data.fallbackAssigneeId);
+      } else {
+        update.fallbackAssigneeId = null;
+      }
     }
-    if (parsed.data.fallbackDepartmentId) {
-      update.fallbackDepartmentId = new mongoose.Types.ObjectId(parsed.data.fallbackDepartmentId);
+    if (parsed.data.fallbackDepartmentId !== undefined) {
+      if (parsed.data.fallbackDepartmentId) {
+        if (!mongoose.Types.ObjectId.isValid(parsed.data.fallbackDepartmentId)) {
+          return NextResponse.json({ error: "Invalid fallback department" }, { status: 400 });
+        }
+        update.fallbackDepartmentId = new mongoose.Types.ObjectId(parsed.data.fallbackDepartmentId);
+      } else {
+        update.fallbackDepartmentId = null;
+      }
     }
     const rule = await RoutingRule.findByIdAndUpdate(id, update, { returnDocument: "after" }).lean();
     if (!rule) return NextResponse.json({ error: "Not found" }, { status: 404 });

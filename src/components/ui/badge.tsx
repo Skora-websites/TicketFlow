@@ -5,24 +5,24 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@/lib/utils";
 
 const badgeVariants = cva(
-  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-all duration-200 border",
+  "inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-semibold transition-colors border",
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground hover:bg-primary/80",
-        secondary: "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
-        destructive: "border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80",
-        outline: "text-foreground border-border",
-        success: "bg-success-muted text-success border-success/20",
-        warning: "bg-warning-muted text-warning border-warning/20",
-        info: "bg-info-muted text-info border-info/20",
-        accent: "bg-accent-muted text-accent border-accent/20",
-        subtle: "bg-muted text-muted-foreground border-border",
+        default: "border-transparent bg-primary text-primary-foreground shadow-xs shadow-primary/20",
+        secondary: "border-border/60 bg-secondary/80 text-secondary-foreground",
+        destructive: "border-destructive/20 bg-destructive/10 text-destructive",
+        outline: "text-foreground border-border/80 bg-card/60",
+        success: "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+        warning: "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+        info: "bg-sky-500/10 text-sky-600 dark:text-sky-400 border-sky-500/20",
+        accent: "bg-primary/10 text-primary border-primary/20",
+        subtle: "bg-muted/70 text-muted-foreground border-border/60",
       },
       size: {
         default: "px-2.5 py-0.5 text-xs",
-        sm: "px-2 py-0.5 text-xs",
-        lg: "px-3 py-1 text-sm",
+        sm: "px-2 py-0.5 text-[11px]",
+        lg: "px-3.5 py-1 text-sm font-semibold",
       },
     },
     defaultVariants: {

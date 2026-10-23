@@ -3,64 +3,142 @@ import type { NextRequest } from "next/server";
 import { getToken } from "next-auth/jwt";
 import { redirectUnauthenticatedFrom } from "@/lib/authRedirects";
 
-const protectedPaths = ["/dashboard", "/client", "/api/tickets", "/api/transfers", "/api/users", "/api/departments", "/api/stats"];
+const protectedPaths = [
+  "/dashboard",
+  "/client",
+  "/api/tickets",
+  "/api/transfers",
+  "/api/users",
+  "/api/departments",
+  "/api/stats",
+  "/api/routing",
+  "/api/notifications",
+  "/api/categories",
+];
 
-// Fixed-window rate limiter for auth endpoints (per-IP, in-memory).
-// Slows brute-force / credential-stuffing against /api/auth/*.
-const AUTH_RATE_LIMIT = 15;
-const AUTH_RATE_WINDOW_MS = 60_000;
+// Universal edge-tier rate limiting and request throttling (per-IP, in-memory).
+// Protects free-tier serverless execution, Atlas DB IOPS, and memory.
 const MAX_RATE_ENTRIES = 10_000;
-const authHits = new Map<string, { count: number; resetAt: number }>();
+const rateBuckets = new Map<string, { count: number; resetAt: number }>();
+const burstBuckets = new Map<string, { count: number; resetAt: number }>();
 
-function isAuthRateLimited(ip: string): boolean {
+function checkEdgeRateLimit(
+  key: string,
+  limit: number,
+  windowMs: number
+): { limited: boolean; limit: number; remaining: number; retryAfter: number; resetAt: number } {
   const now = Date.now();
-  // Periodically sweep expired entries so attacker-controlled keys (spoofed
-  // X-Forwarded-For) cannot grow the map without bound (memory DoS).
-  if (authHits.size > MAX_RATE_ENTRIES / 2) {
-    for (const [key, entry] of authHits) {
-      if (now > entry.resetAt) authHits.delete(key);
+  if (rateBuckets.size > MAX_RATE_ENTRIES / 2) {
+    for (const [k, entry] of rateBuckets) {
+      if (now > entry.resetAt) rateBuckets.delete(k);
     }
   }
-  if (authHits.size >= MAX_RATE_ENTRIES) {
-    // Fail open for legit traffic rather than exhaust memory; the sweeper
-    // above normally prevents reaching this point.
-    authHits.clear();
+  if (rateBuckets.size >= MAX_RATE_ENTRIES) {
+    rateBuckets.clear();
   }
-  const entry = authHits.get(ip);
+
+  const entry = rateBuckets.get(key);
   if (!entry || now > entry.resetAt) {
-    authHits.set(ip, { count: 1, resetAt: now + AUTH_RATE_WINDOW_MS });
+    const resetAt = now + windowMs;
+    rateBuckets.set(key, { count: 1, resetAt });
+    return {
+      limited: false,
+      limit,
+      remaining: limit - 1,
+      retryAfter: Math.ceil(windowMs / 1000),
+      resetAt,
+    };
+  }
+
+  entry.count += 1;
+  const isLimited = entry.count > limit;
+  const retryAfter = Math.max(1, Math.ceil((entry.resetAt - now) / 1000));
+  const remaining = Math.max(0, limit - entry.count);
+
+  return { limited: isLimited, limit, remaining, retryAfter, resetAt: entry.resetAt };
+}
+
+function checkEdgeBurstThrottle(ip: string, maxBurst = 15, windowMs = 2000): boolean {
+  const now = Date.now();
+  if (burstBuckets.size > MAX_RATE_ENTRIES / 2) {
+    for (const [k, entry] of burstBuckets) {
+      if (now > entry.resetAt) burstBuckets.delete(k);
+    }
+  }
+  if (burstBuckets.size >= MAX_RATE_ENTRIES) {
+    burstBuckets.clear();
+  }
+
+  const entry = burstBuckets.get(ip);
+  if (!entry || now > entry.resetAt) {
+    burstBuckets.set(ip, { count: 1, resetAt: now + windowMs });
     return false;
   }
   entry.count += 1;
-  return entry.count > AUTH_RATE_LIMIT;
+  return entry.count > maxBurst;
 }
 
 export default async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Rate-limit authentication endpoints to slow brute-force / abuse.
-  // Session refreshes (GET /api/auth/session) are excluded: SessionProvider
-  // refetches them on mount and every window focus, so counting them would
-  // lock out legitimate users (multiple tabs / shared NAT IPs).
-  const isSessionRefresh =
-    request.method === "GET" && pathname.startsWith("/api/auth/session");
-  if (pathname.startsWith("/api/auth") && !isSessionRefresh) {
-    // Key on the rightmost X-Forwarded-For entry (added by the closest trusted
-    // proxy). The leftmost entry is client-controlled and trivially rotated to
-    // bypass the limiter; with no proxy in front, the header is absent and we
-    // fall back to x-real-ip / a single shared bucket.
-    const xff = request.headers.get("x-forwarded-for");
-    const ip =
-      (xff ? xff.split(",").map((s) => s.trim()).filter(Boolean).pop() : undefined) ||
-      request.headers.get("x-real-ip") ||
-      "unknown";
-    if (isAuthRateLimited(ip)) {
-      return NextResponse.json(
-        { error: "Too many requests. Please try again later." },
-        { status: 429 }
-      );
+  // Cost Control: reject excessive request payloads before buffering
+  const contentLength = request.headers.get("content-length");
+  if (contentLength && parseInt(contentLength, 10) > 10 * 1024 * 1024) {
+    return NextResponse.json(
+      { error: "Payload too large. Maximum 10MB allowed." },
+      { status: 413 }
+    );
+  }
+
+  // Universal API rate limiting & throttling
+  if (pathname.startsWith("/api/")) {
+    const isSessionRefresh = request.method === "GET" && pathname.startsWith("/api/auth/session");
+
+    if (!isSessionRefresh) {
+      const xff = request.headers.get("x-forwarded-for");
+      const ip =
+        (xff ? xff.split(",").map((s) => s.trim()).filter(Boolean).pop() : undefined) ||
+        request.headers.get("x-real-ip") ||
+        "unknown";
+
+      const isDev = process.env.NODE_ENV !== "production";
+
+      // 1. Burst throttle: prevent short-window script hammering (relaxed in dev)
+      if (checkEdgeBurstThrottle(ip, isDev ? 200 : 15, 2000)) {
+        return NextResponse.json(
+          { error: "Too many rapid requests. Please slow down." },
+          { status: 429, headers: { "Retry-After": "2" } }
+        );
+      }
+
+      // 2. Differentiated tiered rate limits
+      let tierLimit = isDev ? 600 : 120; // General reads
+      let bucketPrefix = "read";
+
+      if (pathname.startsWith("/api/auth")) {
+        tierLimit = isDev ? 100 : 15; // Auth endpoints
+        bucketPrefix = "auth";
+      } else if (request.method !== "GET" && request.method !== "HEAD") {
+        tierLimit = isDev ? 200 : 45; // Mutations
+        bucketPrefix = "mutation";
+      }
+
+      const rateCheck = checkEdgeRateLimit(`${bucketPrefix}:${ip}`, tierLimit, 60_000);
+      if (rateCheck.limited) {
+        return NextResponse.json(
+          { error: "Too many requests. Please try again later.", retryAfter: rateCheck.retryAfter },
+          {
+            status: 429,
+            headers: {
+              "Retry-After": rateCheck.retryAfter.toString(),
+              "X-RateLimit-Limit": rateCheck.limit.toString(),
+              "X-RateLimit-Remaining": rateCheck.remaining.toString(),
+              "X-RateLimit-Reset": Math.ceil(rateCheck.resetAt / 1000).toString(),
+            },
+          }
+        );
+      }
     }
-    return NextResponse.next();
   }
 
   const rawToken = await getToken({ req: request, secret: process.env.AUTH_SECRET });
@@ -109,14 +187,7 @@ export const config = {
   matcher: [
     "/dashboard/:path*",
     "/client/:path*",
-    "/api/auth/:path*",
-    "/api/tickets/:path*",
-    "/api/transfers/:path*",
-    "/api/users/:path*",
-    "/api/departments/:path*",
-    "/api/stats/:path*",
-    "/api/routing/:path*",
-    "/api/notifications/:path*",
+    "/api/:path*",
     "/login",
     "/signup",
   ],

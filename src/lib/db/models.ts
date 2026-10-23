@@ -54,6 +54,7 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   role: UserRole;
+  avatar?: string;
   departmentId?: mongoose.Types.ObjectId;
   /** Team-role ticket visibility chosen at creation time (manager option).
    *  Managers always read department-wide regardless of this flag. */
@@ -151,6 +152,7 @@ const UserSchema = new Schema<IUser>({
   name: { type: String, required: true },
   email: { type: String, required: true, unique: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
+  avatar: { type: String },
   role: { 
     type: String, 
     enum: ["super_admin", "manager", "team", "client"], 

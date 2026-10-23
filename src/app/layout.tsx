@@ -3,9 +3,15 @@ import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
 
-// Exact font files pulled from the reference site (victoreke.com):
-// Inter variable (body/UI), GitLab Mono variable (labels/ticket IDs),
-// and Incognito (the reference's display face for headlines).
+import { Plus_Jakarta_Sans } from "next/font/google";
+
+const plusJakarta = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-jakarta",
+  weight: ["400", "500", "600", "700", "800"],
+  display: "swap",
+});
+
 const inter = localFont({
   src: "./fonts/Inter-Variable.woff2",
   variable: "--font-inter",
@@ -43,8 +49,26 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `try{
+              var p = window.location.pathname;
+              var isApp = p.startsWith('/dashboard') || p.startsWith('/client');
+              if (!isApp) {
+                document.documentElement.classList.add('dark');
+                document.documentElement.classList.remove('light');
+                document.documentElement.setAttribute('data-color-theme', 'purple');
+              } else {
+                var t = localStorage.getItem('ticketflow-color-theme');
+                if (t) document.documentElement.setAttribute('data-color-theme', t);
+              }
+            }catch(e){}`,
+          }}
+        />
+      </head>
       <body
-        className={`${inter.variable} ${gitlabMono.variable} ${incognito.variable} antialiased`}
+        className={`${plusJakarta.variable} ${inter.variable} ${gitlabMono.variable} ${incognito.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

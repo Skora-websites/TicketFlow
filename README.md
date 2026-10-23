@@ -4,6 +4,10 @@ A full-stack, role-based helpdesk / ticketing system with an automatic ticket-ro
 
 **Stack:** Next.js 16 (App Router, webpack) · React 19 · TypeScript · MongoDB (Mongoose) · NextAuth v5 (Auth.js) · Tailwind CSS 4 · shadcn/Radix UI · Recharts · Zod
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fyour-username%2Fyour-repo&project-name=ticketflow&repository-name=ticketflow&integration-ids=oac_520iWAGLGAb4T0u4pG9e6z7C)
+
+> **Zero-Config Deployment**: All session secrets, dynamic Vercel host URLs, and trust headers are automatically configured at runtime. If deploying via the button above, the official MongoDB Atlas Vercel integration automatically creates and injects `MONGODB_URI` with zero manual typing required.
+
 ## What's inside
 
 - **Auto-routing engine** — tickets are evaluated against ordered rules (keyword/category/priority/requester conditions) and assigned to the best-scoring agent based on skills, availability, working hours, live load, and round-robin tie-breaking. A dry-run simulator previews routing as staff type the ticket.

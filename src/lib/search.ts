@@ -39,7 +39,7 @@ export function buildTicketSearchFilter(rawSearch: unknown, maxLength = 100): Ti
   const pureNumber = trimmed.match(TICKET_NUMBER_RE);
   if (pureNumber) {
     const digits = (pureNumber[0].match(/\d+/) as RegExpMatchArray)[0];
-    return { ticketNumber: { $regex: `TK-?${digits}$`, $options: "i" } };
+    return { ticketNumber: { $regex: `TK-?0*${digits}$`, $options: "i" } };
   }
 
   // $text gives quotes phrase-search meaning and a leading "-" term

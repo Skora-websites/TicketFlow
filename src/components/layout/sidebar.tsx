@@ -21,8 +21,7 @@ import {
   Tags,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sheet,
   SheetContent,
@@ -127,20 +126,30 @@ function NavLink({
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "relative flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+        "group relative flex h-8.5 items-center gap-2.5 rounded-lg px-2.5 text-xs font-medium transition-all duration-150",
         active
-          ? "bg-primary/10 text-primary before:absolute before:left-0 before:top-1/2 before:-translate-y-1/2 before:h-6 before:w-[2px] before:bg-primary before:rounded-r"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "bg-sidebar-accent text-sidebar-primary font-semibold border border-sidebar-primary/30 shadow-xs"
+          : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
       )}
     >
-      <Icon className="h-4 w-4 shrink-0" aria-hidden />
-      {item.name}
+      <Icon
+        className={cn(
+          "h-3.5 w-3.5 shrink-0 transition-colors",
+          active ? "text-sidebar-primary" : "text-sidebar-foreground/55 group-hover:text-sidebar-foreground"
+        )}
+        aria-hidden
+      />
+      <span className="truncate">{item.name}</span>
       {showQueuePill && unassigned !== null && unassigned > 0 && (
         <span
-          className="ml-auto inline-flex items-center gap-1 rounded-full bg-destructive/10 px-1.5 py-0.5 text-[11px] font-semibold tabular-nums text-destructive"
+          className={cn(
+            "ml-auto inline-flex items-center gap-1 rounded-full px-1.5 py-0.2 text-[10px] font-bold tabular-nums",
+            active
+              ? "bg-sidebar-primary text-sidebar-primary-foreground"
+              : "bg-sidebar-accent text-sidebar-primary border border-sidebar-border"
+          )}
           aria-label={`${unassigned} unassigned tickets waiting`}
         >
-          <span className="h-1.5 w-1.5 rounded-full bg-destructive" aria-hidden />
           {unassigned}
         </span>
       )}
@@ -150,7 +159,7 @@ function NavLink({
 
 function NavGroupLabel({ children }: { children: React.ReactNode }) {
   return (
-    <p className="px-3 pt-4 pb-1 font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted-foreground/70 first:pt-0">
+    <p className="px-3 pt-4 pb-1 text-[10px] font-bold uppercase tracking-[0.12em] text-sidebar-foreground/45 first:pt-1">
       {children}
     </p>
   );
@@ -204,14 +213,11 @@ export function SidebarNav({ onNavigate }: { onNavigate?: () => void }) {
 
 function BrandMark({ href }: { href: string }) {
   return (
-    <Link href={href} className="flex items-center gap-2.5">
-      <span
-        className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary font-display text-sm font-bold text-primary-foreground"
-        aria-hidden
-      >
+    <Link href={href} className="group flex items-center gap-2.5 transition-opacity hover:opacity-90">
+      <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sidebar-primary font-display text-sm font-bold text-sidebar-primary-foreground shadow-xs" aria-hidden>
         T
-      </span>
-      <span className="font-display text-[1.0625rem] font-bold tracking-tight text-foreground">
+      </div>
+      <span className="font-display text-[1.0625rem] font-bold tracking-tight text-sidebar-foreground">
         TicketFlow
       </span>
     </Link>
@@ -225,40 +231,43 @@ function SidebarFooter() {
   const user = session?.user;
 
   return (
-    <div className="space-y-3 border-t border-border p-4">
+    <div className="space-y-2 border-t border-sidebar-border p-2.5">
       {!isClient && (
         <Link
           href="/dashboard/tickets/new"
-          className="flex items-center gap-2.5 rounded-lg bg-primary px-3 py-2.5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+          className="flex h-8.5 items-center justify-center gap-2 rounded-lg bg-sidebar-primary px-3 text-xs font-semibold text-sidebar-primary-foreground shadow-sm transition-all hover:opacity-90 active:scale-[0.98]"
         >
-          <TicketPlus className="h-4 w-4" aria-hidden />
+          <TicketPlus className="h-3.5 w-3.5" aria-hidden />
           New Ticket
         </Link>
       )}
-      {user && (
-        <div className="flex items-center gap-2.5 rounded-lg px-1 py-1">
-          <Avatar className="h-8 w-8">
-            <AvatarFallback className="bg-primary/10 text-xs font-medium text-primary">
-              {user.name?.charAt(0).toUpperCase() || "U"}
-            </AvatarFallback>
-          </Avatar>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium text-foreground">{user.name}</p>
-            <Badge variant="secondary" className="mt-0.5 text-[11px] capitalize">
-              {user.role?.replace("_", " ")}
-            </Badge>
-          </div>
-        </div>
-      )}
+
       <Button
         variant="ghost"
         size="sm"
-        className="w-full justify-start gap-2.5 text-muted-foreground hover:text-foreground"
+        className="h-8 w-full justify-start gap-2 rounded-lg text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
         onClick={() => signOut({ callbackUrl: "/login" })}
       >
-        <LogOut className="h-4 w-4" aria-hidden />
-        Sign Out
+        <LogOut className="h-3.5 w-3.5" aria-hidden />
+        Log Out
       </Button>
+
+      {user && (
+        <div className="flex items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 p-2">
+          <Avatar className="h-7 w-7 border border-sidebar-border">
+            <AvatarImage src={user.image || ""} alt={user.name || ""} />
+            <AvatarFallback className="bg-sidebar-accent text-[11px] font-bold text-sidebar-primary">
+              {user.name?.charAt(0).toUpperCase() || "A"}
+            </AvatarFallback>
+          </Avatar>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-sidebar-foreground leading-tight">{user.name}</p>
+            <p className="truncate text-[10px] text-sidebar-foreground/50 capitalize mt-0.5">
+              {user.role === "super_admin" ? "Administrator" : user.role?.replace("_", " ")}
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -268,11 +277,11 @@ export function Sidebar() {
   const isClient = session?.user?.role === "client";
 
   return (
-    <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-sidebar text-sidebar-foreground lg:flex">
-      <div className="flex h-16 items-center border-b border-border px-4">
+    <aside className="fixed inset-y-0 left-0 z-40 hidden w-[215px] flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground lg:flex">
+      <div className="flex h-12 items-center border-b border-sidebar-border px-4">
         <BrandMark href={isClient ? "/client/tickets" : "/dashboard/overview"} />
       </div>
-      <div className="flex-1 overflow-y-auto p-3">
+      <div className="flex-1 overflow-y-auto p-2">
         <SidebarNav />
       </div>
       <SidebarFooter />
@@ -285,6 +294,12 @@ export function MobileSidebar() {
   const { data: session } = useSession();
   const isClient = session?.user?.role === "client";
 
+  useEffect(() => {
+    const handleToggle = () => setOpen((prev) => !prev);
+    window.addEventListener("toggle-mobile-sidebar", handleToggle);
+    return () => window.removeEventListener("toggle-mobile-sidebar", handleToggle);
+  }, []);
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
@@ -292,9 +307,9 @@ export function MobileSidebar() {
           <Menu className="h-5 w-5" />
         </Button>
       </SheetTrigger>
-      <SheetContent side="left" className="flex w-72 flex-col p-0">
+      <SheetContent side="left" className="flex w-72 flex-col p-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         <SheetTitle className="sr-only">Navigation</SheetTitle>
-        <div className="flex h-16 items-center border-b border-border px-4">
+        <div className="flex h-12 items-center border-b border-sidebar-border px-4">
           <BrandMark href={isClient ? "/client/tickets" : "/dashboard/overview"} />
         </div>
         <div className="flex-1 overflow-y-auto p-3">

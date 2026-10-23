@@ -8,9 +8,9 @@ type CardVariant = "default" | "elevated" | "interactive";
 const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement> & { variant?: CardVariant }>(
   ({ className, variant = "default", ...props }, ref) => {
     const variants: Record<CardVariant, string> = {
-      default: "bg-card border border-border/50 shadow-sm transition-all duration-300 hover:shadow-md",
-      elevated: "bg-card border border-border/50 shadow-lg transition-all duration-300 hover:shadow-xl hover:border-primary/20",
-      interactive: "bg-card border border-border/50 shadow-sm transition-all duration-300 hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5 cursor-pointer",
+      default: "bg-card border border-border shadow-xs",
+      elevated: "bg-card border border-border shadow-sm",
+      interactive: "bg-card border border-border shadow-xs transition-colors hover:border-primary/40 cursor-pointer",
     };
     return (
       <div

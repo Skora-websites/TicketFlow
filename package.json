@@ -7,14 +7,16 @@
   },
   "packageManager": "pnpm@9.15.0",
   "scripts": {
-    "dev": "next dev --webpack",
+    "dev": "node --max-http-header-size=65536 ./node_modules/next/dist/bin/next dev --webpack",
+    "db:start": "tsx scripts/dev-mongo.ts",
     "build": "next build --webpack",
     "start": "next start",
+    "deploy": "npx vercel --prod",
     "lint": "eslint .",
     "seed": "tsx scripts/seed-routing.ts",
     "attachments:backfill": "tsx scripts/backfill-attachments.ts",
     "typecheck": "tsc --noEmit",
-    "test": "npm run typecheck && tsx scripts/authz-audit-test.ts && tsx scripts/medium-fixes-test.ts && tsx scripts/chat-audit-test.ts && tsx scripts/transfer-flow-test.ts && tsx scripts/runtime-audit-test.ts"
+    "test": "npm run typecheck && tsx scripts/authz-audit-test.ts && tsx scripts/medium-fixes-test.ts && tsx scripts/chat-audit-test.ts && tsx scripts/transfer-flow-test.ts && tsx scripts/runtime-audit-test.ts && tsx scripts/audit-fixes-test.ts && tsx scripts/security-quotas-test.ts && tsx scripts/avatar-test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
@@ -54,6 +56,7 @@
     "input-otp": "^1.5.0",
     "lucide-react": "^1.39.0",
     "mongoose": "^9.9.4",
+    "motion": "^14.3.0",
     "next": "^16.3.4",
     "next-auth": "5.0.0-beta.32",
     "next-themes": "^0.4.6",

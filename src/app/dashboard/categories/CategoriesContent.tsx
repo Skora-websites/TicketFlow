@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -206,7 +207,7 @@ export function CategoriesContent() {
                 </SelectContent>
               </Select>
             </div>
-            <Button type="submit" loading={isCreating}>
+            <Button type="submit" loading={isCreating} className="w-full sm:w-auto h-9.5 sm:h-8.5 font-bold">
               <Plus className="mr-1.5 h-4 w-4" aria-hidden />
               Add
             </Button>
@@ -217,9 +218,19 @@ export function CategoriesContent() {
       <Card>
         <CardContent className="p-0">
           {isLoading ? (
-            <div className="flex items-center justify-center p-10">
-              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
-            </div>
+            <ul className="divide-y divide-border" aria-label="Loading categories" aria-busy="true">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <li key={i} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                  <Skeleton className="h-3 w-3 shrink-0 rounded-full" />
+                  <div className="min-w-0 flex-1 space-y-1">
+                    <Skeleton className="h-4 w-32 rounded" />
+                    <Skeleton className="h-3 w-20 rounded font-mono" />
+                  </div>
+                  <Skeleton className="h-8 w-44 shrink-0 rounded-md" />
+                  <Skeleton className="h-8 w-8 shrink-0 rounded-md" />
+                </li>
+              ))}
+            </ul>
           ) : categories.length === 0 ? (
             <div className="p-10 text-center">
               <Tags className="mx-auto mb-3 h-10 w-10 text-muted-foreground" aria-hidden />
@@ -262,17 +273,16 @@ export function CategoriesContent() {
                     {c.slug}
                   </Badge>
                   <Button
-                    variant="ghost"
-                    size="icon"
+                    variant="destructive-outline"
+                    size="icon-sm"
                     onClick={() => handleDelete(c.slug)}
                     disabled={deletingSlug === c.slug}
-                    className="text-muted-foreground hover:text-destructive"
                     aria-label={`Delete category ${c.name}`}
                   >
                     {deletingSlug === c.slug ? (
-                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
                     ) : (
-                      <Trash2 className="h-4 w-4" aria-hidden />
+                      <Trash2 className="h-3.5 w-3.5" aria-hidden />
                     )}
                   </Button>
                 </li>

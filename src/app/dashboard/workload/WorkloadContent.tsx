@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { cn } from "@/lib/utils";
 import { UserAvatar, DepartmentBadge } from "@/components/tickets";
 import { Users, Clock, AlertTriangle, TrendingUp } from "lucide-react";
 import { IUser } from "@/lib/db/models";
@@ -38,42 +40,75 @@ export function WorkloadContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse" aria-label="Loading workload" aria-busy="true">
+      <div className="space-y-6" aria-label="Loading workload" aria-busy="true">
+        {/* Header */}
         <div>
-          <div className="h-8 bg-muted rounded w-1/4 mb-2" />
-          <div className="h-4 bg-muted rounded w-1/3" />
+          <Skeleton className="h-8 w-44 rounded-md mb-1.5" />
+          <Skeleton className="h-4 w-72 rounded-md" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
-            <Card key={i} className="card-elevated">
-              <CardContent className="p-6">
-                <div className="h-4 bg-muted rounded w-1/4 mb-2" />
-                <div className="h-8 bg-muted rounded w-1/3" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-        <Card className="card-elevated">
-          <CardContent className="p-6">
-            <div className="h-4 bg-muted rounded w-1/4 mb-4" />
-            <div className="space-y-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
-                  <div className="w-10 h-10 rounded-full bg-muted" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted rounded w-1/3" />
-                    <div className="h-3 bg-muted rounded w-1/4" />
-                  </div>
-                  <div className="w-20 h-8 bg-muted rounded" />
-                  <div className="w-16 h-8 bg-muted rounded" />
-                  <div className="w-16 h-8 bg-muted rounded" />
-                  <div className="w-16 h-8 bg-muted rounded" />
-                  <div className="w-24 h-6 bg-muted rounded" />
+
+        {/* Shared Horizontal Metrics Strip */}
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+          <div className="grid grid-cols-2 divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-4 sm:p-5">
+                <Skeleton className="h-3.5 w-24 rounded" />
+                <div className="mt-2 flex items-baseline gap-2">
+                  <Skeleton className="h-7 w-12 rounded" />
+                  <Skeleton className="h-3 w-14 rounded" />
                 </div>
-              ))}
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Workload Section */}
+        <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+          <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <Skeleton className="h-6 w-48 rounded-md" />
+              <Skeleton className="mt-1 h-3.5 w-72 rounded-md" />
             </div>
-          </CardContent>
-        </Card>
+            <Skeleton className="h-4 w-16 rounded-md font-mono" />
+          </div>
+
+          <div className="space-y-3">
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-secondary/20 p-4 sm:flex-row sm:items-center sm:justify-between"
+              >
+                {/* Agent Identity */}
+                <div className="flex items-center gap-3.5 min-w-[200px]">
+                  <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+                  <div className="min-w-0 space-y-1.5 flex-1">
+                    <Skeleton className="h-4 w-28 rounded" />
+                    <Skeleton className="h-3 w-20 rounded" />
+                  </div>
+                </div>
+
+                {/* Status Count Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                  <Skeleton className="h-6 w-18 rounded-full" />
+                  <Skeleton className="h-6 w-16 rounded-full" />
+                </div>
+
+                {/* 5-Segment Workload Meter */}
+                <div className="flex items-center justify-between sm:justify-start gap-3 pt-1 sm:pt-0 border-t border-border/50 sm:border-t-0">
+                  <div className="flex items-center gap-2">
+                    <Skeleton className="h-3 w-24 rounded" />
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((b) => (
+                        <Skeleton key={b} className="h-2.5 w-3.5 rounded-xs" />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -112,124 +147,129 @@ export function WorkloadContent() {
       </div>
 
       {/* Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="card-elevated">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Team Members</p>
-                <p className="font-display text-3xl font-semibold tracking-tight text-foreground mt-1">{workload.length}</p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-primary-muted flex items-center justify-center">
-                <Users className="w-6 h-6 text-primary" />
-              </div>
+      {/* Shared Horizontal Metrics Strip */}
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+        <div className="grid grid-cols-2 divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">Team Members</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {workload.length}
+              </span>
+              <span className="text-xs text-muted-foreground">active</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="card-elevated">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Total Open Tickets</p>
-                <p className="font-display text-3xl font-semibold tracking-tight text-foreground mt-1">
-                  {workload.reduce((sum, m) => sum + m.open, 0)}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-info-muted flex items-center justify-center">
-                <Clock className="w-6 h-6 text-info" />
-              </div>
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">Open Tickets</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {workload.reduce((sum, m) => sum + m.open, 0)}
+              </span>
+              <span className="text-xs text-muted-foreground">assigned</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="card-elevated">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">In Progress</p>
-                <p className="font-display text-3xl font-semibold tracking-tight text-foreground mt-1">
-                  {workload.reduce((sum, m) => sum + m.in_progress, 0)}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-warning-muted flex items-center justify-center">
-                <TrendingUp className="w-6 h-6 text-warning" />
-              </div>
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">In Progress</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {workload.reduce((sum, m) => sum + m.in_progress, 0)}
+              </span>
+              <span className="text-xs text-muted-foreground">in active work</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
 
-        <Card className="card-elevated">
-          <CardContent className="p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">On Hold</p>
-                <p className="font-display text-3xl font-semibold tracking-tight text-foreground mt-1">
-                  {workload.reduce((sum, m) => sum + m.on_hold, 0)}
-                </p>
-              </div>
-              <div className="w-12 h-12 rounded-xl bg-accent-muted flex items-center justify-center">
-                <AlertTriangle className="w-6 h-6 text-accent" />
-              </div>
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">On Hold</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {workload.reduce((sum, m) => sum + m.on_hold, 0)}
+              </span>
+              <span className="text-xs text-muted-foreground">pending review</span>
             </div>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
 
-      {/* Workload Table */}
-      <Card className="card-elevated">
-        <CardHeader>
-          <CardTitle className="text-lg">Workload Breakdown</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left p-3 font-medium text-muted-foreground">Team Member</th>
-                  <th className="text-center p-3 font-medium text-muted-foreground">Open</th>
-                  <th className="text-center p-3 font-medium text-muted-foreground">In Progress</th>
-                  <th className="text-center p-3 font-medium text-muted-foreground">On Hold</th>
-                  <th className="text-center p-3 font-medium text-muted-foreground">Total</th>
-                  <th className="text-left p-3 font-medium text-muted-foreground">Department</th>
-                </tr>
-              </thead>
-              <tbody>
-                {workload.map((member, index) => (
-                  <tr key={index} className="border-b border-border/50 hover:bg-muted/50">
-                    <td className="p-3">
-                      <div className="flex items-center gap-3">
-                        <UserAvatar name={member.user.name} role={member.user.role as any} size="md" />
-                        <div>
-                          <p className="font-medium">{member.user.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.user.email}</p>
-                        </div>
-                      </div>
-                    </td>
-                    <td className="text-center p-3">
-                      <Badge variant="outline" className="status-open">{member.open}</Badge>
-                    </td>
-                    <td className="text-center p-3">
-                      <Badge variant="outline" className="status-in_progress">{member.in_progress}</Badge>
-                    </td>
-                    <td className="text-center p-3">
-                      <Badge variant="outline" className="status-on_hold">{member.on_hold}</Badge>
-                    </td>
-                    <td className="text-center p-3 font-semibold text-lg">
-                      {member.total}
-                    </td>
-                    <td className="p-3">
-                      {member.user.departmentId && (
-                        <DepartmentBadge name={member.user.departmentId.name} color={member.user.departmentId.color} />
-                      )}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      {/* Workload Section with Tabela 5-Segment Bar Meters */}
+      <div className="rounded-2xl border border-border bg-card p-6 shadow-sm">
+        <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-foreground tracking-tight">Active Team Workload</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Capacity and active ticket distribution across team members</p>
           </div>
-        </CardContent>
-      </Card>
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground font-mono">{workload.length} agents</span>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {workload.map((member, index) => {
+            const barsFilled = Math.min(5, Math.max(0, Math.ceil(member.total / 2)));
+            return (
+              <div
+                key={index}
+                className="flex flex-col gap-3 rounded-2xl border border-border/80 bg-secondary/20 p-4 transition-all hover:bg-secondary/40 hover:border-foreground/20 sm:flex-row sm:items-center sm:justify-between"
+              >
+                {/* Agent Identity */}
+                <div className="flex items-center gap-3.5 min-w-[200px]">
+                  <UserAvatar name={member.user.name} role={member.user.role as any} size="md" />
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-foreground leading-tight">{member.user.name}</p>
+                    <p className="truncate text-xs text-muted-foreground mt-0.5">
+                      {member.user.departmentId?.name || "General Support"}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Status Count Pills */}
+                <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#EDE8FD] px-2.5 py-0.5 text-xs font-semibold text-[#6D28D9] dark:bg-[#6D28D9]/20 dark:text-[#C4B5FD]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#6D28D9]" />
+                    {member.open} Open
+                  </span>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#E3F5F1] px-2.5 py-0.5 text-xs font-semibold text-[#1D7465] dark:bg-[#1D7465]/25 dark:text-[#6EE7B7]">
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#1D7465]" />
+                    {member.in_progress} Active
+                  </span>
+                  {member.on_hold > 0 && (
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FEF3C7] px-2.5 py-0.5 text-xs font-semibold text-[#B45309] dark:bg-[#B45309]/20 dark:text-[#FCD34D]">
+                      {member.on_hold} Hold
+                    </span>
+                  )}
+                </div>
+
+                {/* Tabela 5-Segment Workload Meter */}
+                <div className="flex items-center justify-between sm:justify-start gap-3 pt-1 sm:pt-0 border-t border-border/50 sm:border-t-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                      Staff Workload
+                    </span>
+                    <div className="flex items-center gap-1">
+                      {[1, 2, 3, 4, 5].map((b) => (
+                        <span
+                          key={b}
+                          className={cn(
+                            "h-2.5 w-3.5 rounded-xs transition-colors",
+                            b <= barsFilled
+                              ? "bg-accent"
+                              : "bg-secondary"
+                          )}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <span className="font-mono text-sm font-bold text-foreground tabular-nums min-w-[24px] text-right">
+                    {member.total}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

@@ -41,8 +41,8 @@ export async function PATCH(
     }
 
     if (currentUser.role === "manager") {
-      if (targetUser.role === "super_admin") {
-        return NextResponse.json({ error: "Cannot modify super admin" }, { status: 403 });
+      if (targetUser.role === "super_admin" || targetUser.role === "manager") {
+        return NextResponse.json({ error: "Managers can only manage agents in their department" }, { status: 403 });
       }
       if (targetUser.departmentId?.toString() !== currentUser.departmentId) {
         return NextResponse.json({ error: "Cannot modify users outside your department" }, { status: 403 });
@@ -75,8 +75,8 @@ export async function PATCH(
       updateData.email = email.toLowerCase();
     }
     if (role) {
-      if (currentUser.role === "manager" && role === "super_admin") {
-        return NextResponse.json({ error: "Managers cannot assign super admin role" }, { status: 403 });
+      if (currentUser.role === "manager" && role !== "team") {
+        return NextResponse.json({ error: "Managers can only assign the team role to agents" }, { status: 403 });
       }
       updateData.role = role;
     }

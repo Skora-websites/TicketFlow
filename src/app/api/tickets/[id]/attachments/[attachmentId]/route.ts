@@ -55,6 +55,9 @@ export async function GET(
     let attach: AttachMeta | null = null;
     const comment = await Comment.findById(attachmentId).lean();
     if (comment && comment.ticketId.toString() === id && comment.attachment) {
+      if (comment.visibility === "internal" && user.role === "client") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       attach = comment.attachment as unknown as AttachMeta;
     } else if (ticket.attachments) {
       const found = (ticket.attachments as unknown as AttachMeta[]).find(
@@ -165,6 +168,9 @@ export async function DELETE(
     const isCommentAttachment = !!comment && comment.ticketId.toString() === id && !!comment.attachment;
 
     if (isCommentAttachment) {
+      if (comment!.visibility === "internal" && user.role === "client") {
+        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      }
       const isAuthor = comment!.authorId.toString() === user.id;
       if (!isAuthor && !isManager) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 });

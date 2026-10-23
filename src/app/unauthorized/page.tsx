@@ -4,7 +4,7 @@ import { ShieldX } from "lucide-react";
 
 export default function UnauthorizedPage() {
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background px-4 text-center">
+    <div className="dark min-h-screen flex flex-col items-center justify-center bg-background px-4 text-center text-foreground" data-color-theme="purple">
       <div className="mb-6 flex h-16 w-16 items-center justify-center rounded-2xl bg-destructive/10 text-destructive">
         <ShieldX className="h-8 w-8" />
       </div>

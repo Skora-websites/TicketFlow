@@ -178,16 +178,20 @@ export function TransferPanel({ ticketId, transfer, currentUser, onChanged }: Tr
             {confirming === null ? (
               <>
                 <Button
-                  variant="outline"
+                  variant="destructive-outline"
                   size="sm"
                   disabled={isDeciding}
                   onClick={() => setConfirming("reject")}
-                  className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                 >
                   <X className="mr-1 h-3.5 w-3.5" aria-hidden />
-                  Reject
+                  Deny
                 </Button>
-                <Button size="sm" disabled={isDeciding} onClick={() => setConfirming("approve")}>
+                <Button
+                  variant="success"
+                  size="sm"
+                  disabled={isDeciding}
+                  onClick={() => setConfirming("approve")}
+                >
                   <Check className="mr-1 h-3.5 w-3.5" aria-hidden />
                   Approve
                 </Button>
@@ -206,8 +210,8 @@ export function TransferPanel({ ticketId, transfer, currentUser, onChanged }: Tr
                       htmlFor="transfer-deny-reason"
                       className="mb-1 block text-xs font-medium text-foreground"
                     >
-                      Why are you denying this?{' '}
-                      <span className="font-normal text-muted-foreground">(sent to the sender — optional)</span>
+                      Reason for denial{' '}
+                      <span className="font-normal text-muted-foreground">(sent to the sender)</span>
                     </label>
                     <textarea
                       id="transfer-deny-reason"
@@ -215,22 +219,22 @@ export function TransferPanel({ ticketId, transfer, currentUser, onChanged }: Tr
                       onChange={(e) => setDenyReason(e.target.value)}
                       rows={2}
                       maxLength={500}
-                      placeholder="e.g. no capacity this sprint — resend next week"
+                      placeholder="e.g. wrong department, out of scope, or resend next week"
                       className="w-full resize-none rounded-lg border border-border bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
                     />
                   </div>
                 )}
                 <div className="flex items-center justify-end gap-2">
-                  <Button variant="ghost" size="sm" disabled={isDeciding} onClick={() => { setConfirming(null); setDenyReason(""); }}>
+                  <Button variant="outline" size="sm" disabled={isDeciding} onClick={() => { setConfirming(null); setDenyReason(""); }}>
                     Cancel
                   </Button>
                   <Button
                     size="sm"
-                    variant={confirming === "reject" ? "destructive" : "default"}
+                    variant={confirming === "reject" ? "destructive" : "success"}
                     loading={isDeciding}
                     onClick={() => decide(confirming)}
                   >
-                    Confirm {confirming}
+                    {confirming === "reject" ? "Confirm Denial" : "Confirm Approval"}
                   </Button>
                 </div>
               </div>

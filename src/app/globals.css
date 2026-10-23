@@ -57,9 +57,9 @@
   --radius-xl: calc(var(--radius) + 6px);
   --radius-2xl: calc(var(--radius-xl) + 4px);
 
-  --font-sans: var(--font-inter), system-ui, sans-serif;
+  --font-sans: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
   --font-mono: var(--font-gitlab-mono), ui-monospace, monospace;
-  --font-display: var(--font-incognito), var(--font-inter), system-ui, sans-serif;
+  --font-display: var(--font-jakarta), system-ui, sans-serif;
 
   --text-display-xl: 4.5rem;
   --text-display-xl--line-height: 1.1;
@@ -170,161 +170,402 @@
 
 @layer base {
   :root {
-    /* Core brand — cool paper neutrals with an ink-cobalt accent.
-       One blue family carries brand + focus + selection; semantic colors
-       (success/warning/destructive) keep their conventional hues. */
-    --background: 220 30% 98%;
-    --foreground: 224 30% 12%;
+    /* Night, Deep Panel & Rose Light Design System */
+    --background: 0 0% 98%; /* Clean light canvas */
+    --foreground: 0 0% 7.1%; /* #121212 Night */
     
-    --card: 0 0% 100%;
-    --card-foreground: 224 30% 12%;
+    --card: 0 0% 100%; /* Pure white surface */
+    --card-foreground: 0 0% 7.1%;
     
     --popover: 0 0% 100%;
-    --popover-foreground: 224 30% 12%;
+    --popover-foreground: 0 0% 7.1%;
     
-    /* Primary accent: deep cobalt — white text passes on it, hover lightens. */
-    --primary: 224 71% 40%;
-    --primary-foreground: 0 0% 100%;
-    --primary-glow: 224 71% 50%;
-    --primary-muted: 224 56% 94%;
+    /* Primary action: Night black */
+    --primary: 0 0% 7.1%; /* #121212 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+    --primary-glow: 343 78% 78%; /* #F399B3 Rose light */
+    --primary-muted: 0 0% 94%;
     
-    --secondary: 220 22% 94%;
-    --secondary-foreground: 222 18% 32%;
+    --secondary: 0 0% 95%; /* Raised light */
+    --secondary-foreground: 0 0% 7.1%;
     
-    --muted: 220 22% 95%;
-    --muted-foreground: 220 14% 45%;
+    --muted: 0 0% 95%;
+    --muted-foreground: 0 0% 50%;
     
-    /* Steel blue — quieter than primary, for secondary emphasis. */
-    --accent: 215 42% 38%;
-    --accent-foreground: 0 0% 100%;
-    --accent-muted: 215 36% 93%;
+    /* Rose light accent */
+    --accent: 343 78% 78%; /* #F399B3 Rose light */
+    --accent-foreground: 0 0% 5.5%; /* #0E0E0E Deep panel */
+    --accent-muted: 344 23% 32%; /* #643F49 Rose hover */
     
-    --destructive: 0 84% 60%;
+    --destructive: 0 84% 60%; /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
-    --destructive-muted: 0 84% 95%;
+    --destructive-muted: 0 84% 96%;
     
-    --success: 142 76% 36%;
+    --success: 154 53% 24%;
     --success-foreground: 0 0% 100%;
-    --success-muted: 142 76% 95%;
+    --success-muted: 150 25% 93%;
     
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
-    --warning-muted: 38 92% 95%;
+    --warning-muted: 38 92% 94%;
     
-    --info: 205 85% 46%;
-    --info-foreground: 0 0% 100%;
-    --info-muted: 205 85% 95%;
+    --info: 343 78% 78%; /* Rose light */
+    --info-foreground: 0 0% 5.5%;
+    --info-muted: 343 78% 95%;
     
-    --border: 222 14% 90%;
-    --input: 222 14% 90%;
-    --ring: 224 71% 40%;
+    --border: 0 0% 88%;
+    --input: 0 0% 88%;
+    --ring: 343 78% 78%; /* #F399B3 */
     
-    --radius: 0.625rem;
-    --radius-sm: 0.375rem;
-    --radius-lg: 0.625rem;
-    --radius-xl: 1rem;
+    /* Compact, clean cards and controls */
+    --radius: 0.625rem; /* 10px */
+    --radius-sm: 0.375rem; /* 6px */
+    --radius-lg: 0.75rem; /* 12px */
+    --radius-xl: 1rem; /* 16px */
     
-    /* Shadows — flat system: only neutral elevation, no colored glow */
-    --shadow-sm: 0 1px 2px 0 hsl(222 14% 90% / 0.5);
-    --shadow-md: 0 4px 6px -1px hsl(222 14% 90% / 0.5), 0 2px 4px -2px hsl(222 14% 90% / 0.3);
-    --shadow-lg: 0 10px 15px -3px hsl(222 14% 90% / 0.4), 0 4px 6px -4px hsl(222 14% 90% / 0.2);
-    --shadow-xl: 0 20px 25px -5px hsl(222 14% 90% / 0.4), 0 8px 10px -6px hsl(222 14% 90% / 0.2);
+    --shadow-sm: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.04);
+    --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -4px rgba(0, 0, 0, 0.04);
     
     /* Animations */
-    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: 400ms cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    --transition-fast: 120ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 180ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
     
-    /* Sidebar — light, matches app surface */
-    --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 224 30% 12%;
-    --sidebar-primary: 224 71% 40%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 224 56% 93%;
-    --sidebar-accent-foreground: 224 30% 12%;
-    --sidebar-border: 222 14% 90%;
-    --sidebar-ring: 224 71% 40%;
+    /* Sidebar: Deep panel #0E0E0E */
+    --sidebar-background: 0 0% 5.5%; /* #0E0E0E Deep panel */
+    --sidebar-foreground: 0 0% 100%; /* #FFFFFF White */
+    --sidebar-primary: 343 78% 78%; /* #F399B3 Rose light */
+    --sidebar-primary-foreground: 0 0% 5.5%; /* #0E0E0E */
+    --sidebar-accent: 344 23% 32%; /* #643F49 Rose hover */
+    --sidebar-accent-foreground: 343 78% 78%; /* #F399B3 */
+    --sidebar-border: 0 0% 15%; /* #262626 Raised surface */
+    --sidebar-ring: 343 78% 78%;
 
-    /* Chart colors — blue, violet, teal, amber, sky (distinct at a glance) */
-    --chart-1: 224 76% 52%;
-    --chart-2: 262 60% 58%;
-    --chart-3: 190 70% 42%;
-    --chart-4: 38 92% 50%;
-    --chart-5: 205 85% 50%;
+    /* Chart colors */
+    --chart-1: 343 78% 78%; /* Rose light */
+    --chart-2: 0 0% 100%; /* White */
+    --chart-3: 344 23% 50%; /* Rose mid */
+    --chart-4: 0 0% 60%; /* Muted copy */
+    --chart-5: 0 75% 55%;
+
+    /* Activity Heatmap Tokens */
+    --surface: oklch(100% 0 0);
+    --text-secondary: oklch(46% 0 0);
+    --text-muted: oklch(59% 0 0);
+    --border-strong: oklch(82% 0 0);
+    --focus-ring: transparent;
+    --space-2: .5rem;
+    --space-3: .75rem;
+    --space-4: 1rem;
+    --leading-body: 1.4;
+    --radius-control: 1.125rem;
+    --shadow-raised: 0 6px 18px oklch(0% 0 0 / .065), 0 1px 3px oklch(0% 0 0 / .035);
+    --ease-enter: cubic-bezier(.16,1,.3,1);
+    --ease-standard: cubic-bezier(.22,1,.36,1);
+    --ease-spring: linear(0, 0.0258, 0.09, 0.1763, 0.2732, 0.3724, 0.4683, 0.5573, 0.6376, 0.7082, 0.7689, 0.8202, 0.8628, 0.8976, 0.9256, 0.9476, 0.9648, 0.9778, 0.9875, 0.9945, 0.9994, 1.0026, 1.0047, 1.0058, 1.0062, 1.0062, 1.0059, 1.0055, 1.0049, 1.0043, 1.0036, 1.0031, 1.0025, 1.002, 1.0016, 1.0013, 1);
+    --duration-fast: 160ms;
+    --duration-spring: 580ms;
 
     /* Department colors */
-    --dept-development: 224 76% 50%;
-    --dept-marketing: 330 81% 60%;
-    --dept-sales: 190 75% 42%;
+    --dept-development: 343 78% 78%;
+    --dept-marketing: 344 23% 55%;
+    --dept-sales: 0 0% 100%;
   }
 
-  /* Dark theme: blue-slate mirrors of the light surfaces — same cold hue
-     family (222±3°), near-white text, translucent slate panels, hairline
-     borders. The luminous cobalt accent (217 92% 64%) carries dark text. */
+  /* Base Dark Mode: Night #121212 canvas with Raised surface #262626 */
   .dark {
-    --background: 223 18% 9%;
-    --foreground: 220 20% 96%;
+    --background: 0 0% 7.1%; /* #121212 Night canvas */
+    --foreground: 0 0% 100%; /* #FFFFFF White text */
     
-    --card: 222 16% 14%;
-    --card-foreground: 220 20% 96%;
+    --card: 0 0% 15%; /* #262626 Raised surface */
+    --card-foreground: 0 0% 100%;
     
-    --popover: 222 16% 12%;
-    --popover-foreground: 220 20% 96%;
+    --popover: 0 0% 15%; /* #262626 Raised surface */
+    --popover-foreground: 0 0% 100%;
     
-    --primary: 217 92% 64%;
-    --primary-foreground: 223 30% 8%;
-    --primary-glow: 217 92% 72%;
-    --primary-muted: 222 45% 17%;
+    --primary: 0 0% 100%; /* #FFFFFF White button on dark */
+    --primary-foreground: 0 0% 7.1%; /* #121212 Night text */
+    --primary-muted: 0 0% 20%;
 
-    --secondary: 222 14% 19%;
-    --secondary-foreground: 220 20% 96%;
+    --secondary: 0 0% 15%; /* #262626 Raised surface */
+    --secondary-foreground: 0 0% 90%;
 
-    --muted: 222 14% 17%;
-    --muted-foreground: 220 12% 64%;
+    --muted: 0 0% 15%;
+    --muted-foreground: 0 0% 60%; /* #999999 Muted copy */
+    
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-muted: 0 62% 20%;
+    
+    --success: 154 50% 45%;
+    --success-foreground: 0 0% 100%;
+    --success-muted: 154 50% 18%;
+    
+    --warning: 38 92% 55%;
+    --warning-foreground: 0 0% 100%;
+    --warning-muted: 38 92% 18%;
+    
+    --border: 0 0% 20%; /* #333333 */
+    --input: 0 0% 20%;
 
-    --accent: 215 55% 62%;
-    --accent-foreground: 223 30% 8%;
-    --accent-muted: 216 35% 16%;
-    
-    --destructive: 0 72% 55%;
-    --destructive-foreground: 0 0% 98%;
-    --destructive-muted: 0 55% 17%;
-    
-    --success: 142 70% 46%;
-    --success-foreground: 223 30% 8%;
-    --success-muted: 142 40% 15%;
-    
-    --warning: 38 92% 56%;
-    --warning-foreground: 223 30% 8%;
-    --warning-muted: 38 55% 16%;
-    
-    --info: 199 90% 58%;
-    --info-foreground: 223 30% 8%;
-    --info-muted: 199 55% 16%;
-    
-    --border: 222 12% 22%;
-    --input: 222 12% 22%;
-    --ring: 217 92% 64%;
+    --sidebar-background: 0 0% 5.5%; /* #0E0E0E Deep panel */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 15%; /* #262626 Raised surface */
+  }
 
-    --sidebar-background: 223 18% 9%;
-    --sidebar-foreground: 220 20% 96%;
-    --sidebar-primary: 217 92% 64%;
-    --sidebar-primary-foreground: 223 30% 8%;
-    --sidebar-accent: 222 14% 19%;
-    --sidebar-accent-foreground: 220 20% 96%;
-    --sidebar-border: 222 12% 22%;
-    --sidebar-ring: 217 92% 64%;
+  /* ================= Color Theme: Rose (Default) ================= */
+  :root[data-color-theme="rose"], :root:not([data-color-theme]) {
+    --background: 345 40% 99.2%; /* Airy pearl-blush white canvas */
+    --card: 0 0% 100%; /* Pure crisp white card surface */
+    --popover: 0 0% 100%;
+    --primary: 342 72% 58%; /* Luminous modern rose petal */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 343 78% 78%; /* #F399B3 Rose light */
+    --accent: 343 78% 78%; /* #F399B3 Pastel rose */
+    --accent-foreground: 340 45% 18%; /* Deep plum text on pastel rose */
+    --accent-muted: 345 60% 96%; /* Delicate blush pill/badge */
+    --secondary: 345 45% 96.5%; /* Clean airy blush control surface */
+    --secondary-foreground: 340 35% 20%;
+    --muted: 345 40% 96.5%;
+    --muted-foreground: 340 12% 50%; /* Clean neutral rose-slate */
+    --border: 345 30% 92%; /* Delicate rose-pearl border */
+    --input: 345 30% 92%;
+    --ring: 342 72% 65%;
+    --sidebar-background: 352 30% 8%; /* Dark berry brown sidebar in light mode */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 343 78% 78%;
+    --sidebar-primary-foreground: 350 40% 12%;
+    --sidebar-accent: 344 23% 32%;
+    --sidebar-accent-foreground: 343 78% 78%;
+    --sidebar-border: 350 24% 15%;
+    --chart-1: 342 72% 58%;
+    --chart-2: 343 78% 78%;
+    --chart-3: 340 25% 75%;
+    --dept-development: 342 72% 58%;
+    --dept-marketing: 343 78% 75%;
+    --dept-sales: 340 30% 25%;
+  }
+  .dark[data-color-theme="rose"], .dark:not([data-color-theme]) {
+    --background: 352 26% 6.5%; /* Deep berry brown night canvas (#150B0D) */
+    --card: 350 28% 13.5%; /* Deep berry brown card surface (#2B171B) */
+    --popover: 350 28% 13.5%;
+    --primary: 343 78% 78%; /* #F399B3 Rose light button */
+    --primary-foreground: 350 40% 12%; /* Deep berry brown text on rose */
+    --primary-glow: 343 78% 78%; /* #F399B3 Rose light */
+    --accent: 343 78% 78%; /* #F399B3 Rose light */
+    --accent-foreground: 350 40% 12%;
+    --accent-muted: 344 23% 32%; /* #643F49 Rose hover / deep berry brown surface */
+    --secondary: 350 28% 10.5%; /* Raised deep berry brown control (#221215) */
+    --secondary-foreground: 330 6% 91%; /* #E9E7E8 Tag text */
+    --muted: 350 26% 12%;
+    --muted-foreground: 350 14% 65%; /* Soft berry-cream muted copy (#B59DA2) */
+    --border: 350 24% 21%; /* Deep berry brown border (#43262C) */
+    --input: 350 24% 21%;
+    --ring: 343 78% 78%;
+    --sidebar-background: 352 30% 8%; /* Deep berry brown sidebar panel (#1A0C0F) */
+    --sidebar-primary: 343 78% 78%;
+    --sidebar-primary-foreground: 350 40% 12%;
+    --sidebar-accent: 344 23% 32%; /* #643F49 Rose hover */
+    --sidebar-accent-foreground: 343 78% 78%;
+    --sidebar-border: 350 24% 15%; /* #301B20 */
+    --chart-1: 343 78% 78%;
+    --chart-2: 344 23% 32%;
+    --chart-3: 350 14% 65%;
+    --dept-development: 343 78% 78%;
+    --dept-marketing: 344 23% 45%;
+    --dept-sales: 330 6% 91%;
+  }
 
-    --chart-1: 217 92% 66%;
-    --chart-2: 262 65% 66%;
-    --chart-3: 190 75% 52%;
-    --chart-4: 38 92% 58%;
-    --chart-5: 205 88% 60%;
+  /* ================= Color Theme: Purple (Lilac) ================= */
+  :root[data-color-theme="purple"] {
+    --background: 265 40% 99.2%; /* Airy pearl-lavender white canvas */
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --primary: 265 65% 58%; /* Luminous vibrant amethyst */
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 260 100% 83%; /* #C4A7FF Lilac light */
+    --accent: 260 100% 83%; /* #C4A7FF Pastel lilac */
+    --accent-foreground: 264 45% 18%; /* Deep violet text on pastel lilac */
+    --accent-muted: 265 60% 96%; /* Delicate lavender pill/badge */
+    --secondary: 265 45% 96.5%; /* Clean airy lavender control surface */
+    --secondary-foreground: 265 35% 20%;
+    --muted: 265 40% 96.5%;
+    --muted-foreground: 265 12% 50%; /* Clean neutral violet-slate */
+    --border: 265 30% 92%; /* Delicate lavender-pearl border */
+    --input: 265 30% 92%;
+    --ring: 265 65% 65%;
+    --sidebar-background: 264 38% 9%; /* Dark twilight violet sidebar in light mode */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 260 100% 83%;
+    --sidebar-primary-foreground: 264 45% 12%;
+    --sidebar-accent: 264 30% 16%;
+    --sidebar-accent-foreground: 260 100% 83%;
+    --sidebar-border: 264 26% 15%;
+    --chart-1: 265 65% 58%;
+    --chart-2: 260 100% 83%;
+    --chart-3: 265 25% 75%;
+    --dept-development: 265 65% 58%;
+    --dept-marketing: 260 100% 83%;
+    --dept-sales: 265 30% 25%;
+  }
+  .dark[data-color-theme="purple"],
+  .dark [data-color-theme="purple"],
+  [data-color-theme="purple"].dark,
+  [data-color-theme="purple"] .dark {
+    --background: 264 33% 6.5%; /* Deep midnight violet night canvas */
+    --card: 264 35% 16%; /* Deep amethyst-violet card surface */
+    --popover: 264 35% 16%;
+    --primary: 260 100% 83%; /* #C4A7FF Lilac light button */
+    --primary-foreground: 264 45% 12%; /* Deep violet text on lilac */
+    --primary-glow: 260 100% 83%; /* #C4A7FF Lilac light */
+    --accent: 260 100% 83%; /* #C4A7FF Lilac light */
+    --accent-foreground: 264 45% 12%;
+    --accent-muted: 267 30% 24%; /* Violet hover surface */
+    --secondary: 264 30% 12.5%; /* Violet-tinged dark control */
+    --secondary-foreground: 261 40% 95%; /* Crisp lilac-white */
+    --muted: 264 30% 13%;
+    --muted-foreground: 260 18% 67%; /* Lilac-dusted copy */
+    --border: 264 28% 22%; /* Violet-tinted border */
+    --input: 264 28% 22%;
+    --ring: 260 100% 83%;
+    --sidebar-background: 264 38% 9%; /* Deep twilight violet sidebar panel */
+    --sidebar-primary: 260 100% 83%;
+    --sidebar-primary-foreground: 264 45% 12%;
+    --sidebar-accent: 264 30% 16%; /* Purple hover */
+    --sidebar-accent-foreground: 260 100% 83%;
+    --sidebar-border: 264 26% 15%;
+    --chart-1: 260 100% 83%;
+    --chart-2: 267 30% 50%;
+    --chart-3: 260 18% 67%;
+    --dept-development: 260 100% 83%;
+    --dept-marketing: 267 30% 55%;
+    --dept-sales: 261 40% 95%;
+  }
 
-    --dept-development: 217 92% 64%;
-    --dept-marketing: 330 81% 62%;
-    --dept-sales: 190 80% 55%;
+  /* ================= Color Theme: Lime (Forest) ================= */
+  :root[data-color-theme="lime"] {
+    --background: 150 18% 99%; /* Airy sage-tinted light canvas */
+    --card: 0 0% 100%;
+    --popover: 0 0% 100%;
+    --primary: 152 55% 15%; /* Deep dark evergreen button */
+    --primary-foreground: 80 87% 59%;
+    --accent: 154 53% 26%;
+    --accent-foreground: 0 0% 100%;
+    --accent-muted: 147 44% 94%;
+    --secondary: 147 20% 94%;
+    --secondary-foreground: 154 53% 15%;
+    --muted: 147 20% 94%;
+    --muted-foreground: 153 16% 45%;
+    --border: 150 18% 88%;
+    --input: 150 18% 88%;
+    --ring: 80 87% 50%;
+    --sidebar-background: 150 38% 6.5%; /* Dark nocturnal forest panel in light mode */
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 80 87% 59%;
+    --sidebar-primary-foreground: 150 45% 8%;
+    --sidebar-accent: 150 32% 11%;
+    --sidebar-accent-foreground: 80 87% 59%;
+    --sidebar-border: 150 28% 12%;
+    --chart-1: 154 53% 26%;
+    --chart-2: 80 87% 50%;
+    --chart-3: 153 14% 60%;
+    --dept-development: 154 53% 26%;
+    --dept-marketing: 153 14% 60%;
+    --dept-sales: 0 0% 25%;
+  }
+  .dark[data-color-theme="lime"] {
+    --background: 150 36% 4.8%; /* Deepest nocturnal obsidian forest (#07100A) */
+    --card: 150 32% 8.5%; /* Deep rich dark forest surface (#0E1B12) */
+    --popover: 150 32% 8.5%;
+    --primary: 80 87% 59%; /* #B8F23D Lime */
+    --primary-foreground: 150 45% 8%; /* Deep forest text */
+    --primary-glow: 80 87% 59%;
+    --accent: 80 87% 59%; /* #B8F23D Lime */
+    --accent-foreground: 150 45% 8%;
+    --accent-muted: 150 32% 12%;
+    --secondary: 150 30% 7%; /* Darker forest control (#0B160F) */
+    --secondary-foreground: 96 35% 96%;
+    --muted: 150 30% 7.5%;
+    --muted-foreground: 150 14% 65%; /* Readable soft sage (#99B2A2) */
+    --border: 150 26% 13%; /* Dark restrained pine border (#16281C) */
+    --input: 150 26% 13%;
+    --ring: 80 87% 59%;
+    --sidebar-background: 150 38% 6.5%; /* Deep nocturnal forest panel (#0A170F) */
+    --sidebar-primary: 80 87% 59%;
+    --sidebar-primary-foreground: 150 45% 8%;
+    --sidebar-accent: 150 32% 11%; /* #132418 */
+    --sidebar-accent-foreground: 80 87% 59%;
+    --sidebar-border: 150 28% 12%; /* #15281C */
+    --chart-1: 80 87% 59%;
+    --chart-2: 150 32% 25%;
+    --chart-3: 150 14% 65%;
+    --dept-development: 80 87% 59%;
+    --dept-marketing: 150 25% 45%;
+    --dept-sales: 96 35% 96%;
+  }
+
+  /* ================= Color Theme: Brown (Plain Cream / Brown) ================= */
+  :root[data-color-theme="brown"] {
+    --background: 35 38% 97.5%; /* Plain warm cream canvas (#FBF8F3) */
+    --card: 0 0% 100%; /* Pure ivory white card surface */
+    --popover: 0 0% 100%;
+    --primary: 28 45% 24%; /* Roasted espresso brown button (#593721) */
+    --primary-foreground: 40 40% 97%; /* Warm cream text */
+    --primary-glow: 34 65% 65%; /* #DFAC6C Warm caramel */
+    --accent: 32 60% 52%; /* Warm caramel amber (#CB853E) */
+    --accent-foreground: 40 40% 98%;
+    --accent-muted: 35 45% 93%; /* Light biscuit cream pill */
+    --secondary: 35 35% 93.5%; /* Toasted cream control surface (#F3EDE4) */
+    --secondary-foreground: 28 40% 18%;
+    --muted: 35 35% 93.5%;
+    --muted-foreground: 28 14% 46%; /* Roasted coffee-slate copy (#7B7068) */
+    --border: 32 25% 88%; /* Soft warm biscuit border (#E6DDD2) */
+    --input: 32 25% 88%;
+    --ring: 32 60% 52%;
+    --sidebar-background: 28 42% 8%; /* Deep roasted espresso mocha panel (#1D120B) */
+    --sidebar-foreground: 40 40% 97%;
+    --sidebar-primary: 34 68% 65%; /* Warm caramel (#DCA96F) */
+    --sidebar-primary-foreground: 28 50% 12%;
+    --sidebar-accent: 28 32% 16%; /* Mocha hover (#362215) */
+    --sidebar-accent-foreground: 34 68% 65%;
+    --sidebar-border: 28 30% 14%; /* #2E1F15 */
+    --chart-1: 32 60% 52%;
+    --chart-2: 28 45% 24%;
+    --chart-3: 35 40% 75%;
+    --dept-development: 32 60% 52%;
+    --dept-marketing: 34 68% 65%;
+    --dept-sales: 28 40% 25%;
+  }
+  .dark[data-color-theme="brown"] {
+    --background: 28 35% 5.5%; /* Deep roasted cacao / espresso noir canvas (#130C07) */
+    --card: 28 32% 10.5%; /* Deep dark chocolate / walnut card surface (#231710) */
+    --popover: 28 32% 10.5%;
+    --primary: 34 70% 66%; /* Warm honey caramel button (#E4B170) */
+    --primary-foreground: 28 50% 10%; /* Deep espresso text */
+    --primary-glow: 34 70% 66%;
+    --accent: 34 70% 66%; /* Warm honey caramel (#E4B170) */
+    --accent-foreground: 28 50% 10%;
+    --accent-muted: 28 30% 18%; /* Deep mocha hover */
+    --secondary: 28 30% 8.5%; /* Dark toasted cacao control (#1C120B) */
+    --secondary-foreground: 40 35% 94%; /* Warm cream text (#F7F3EB) */
+    --muted: 28 28% 9.5%;
+    --muted-foreground: 30 16% 65%; /* Soft roasted almond copy (#ADA094) */
+    --border: 28 26% 16%; /* Dark walnut border (#332115) */
+    --input: 28 26% 16%;
+    --ring: 34 70% 66%;
+    --sidebar-background: 28 42% 7%; /* Deep roasted mocha sidebar (#1A0F09) */
+    --sidebar-primary: 34 70% 66%;
+    --sidebar-primary-foreground: 28 50% 10%;
+    --sidebar-accent: 28 32% 15%; /* #321E12 */
+    --sidebar-accent-foreground: 34 70% 66%;
+    --sidebar-border: 28 26% 13%; /* #2A1A0F */
+    --chart-1: 34 70% 66%;
+    --chart-2: 28 32% 35%;
+    --chart-3: 30 16% 65%;
+    --dept-development: 34 70% 66%;
+    --dept-marketing: 34 50% 45%;
+    --dept-sales: 40 35% 94%;
   }
 }
 
@@ -332,8 +573,12 @@
   * {
     @apply border-border;
   }
+  html {
+    font-size: 14px;
+    letter-spacing: -0.01em;
+  }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased text-[13px] leading-normal;
     /* Inter OpenType defaults, per the reference site. */
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
@@ -381,17 +626,17 @@
            transition-all duration-200 placeholder:text-muted-foreground/60;
   }
   
-  /* Status indicators */
-  .status-open { @apply bg-info-muted text-info border-info/20; }
-  .status-in_progress { @apply bg-warning-muted text-warning border-warning/20; }
-  .status-on_hold { @apply bg-accent-muted text-accent border-accent/20; }
-  .status-resolved { @apply bg-success-muted text-success border-success/20; }
-  .status-closed { @apply bg-muted text-muted-foreground border-border; }
+  /* Status indicators — adapt to color theme and mode */
+  .status-open { @apply bg-accent/15 text-accent border-accent/35 font-semibold; }
+  .status-in_progress { @apply bg-primary/10 text-primary border-primary/20 dark:bg-white/15 dark:text-white dark:border-white/25 font-medium; }
+  .status-on_hold { @apply bg-[#FEF3C7] text-[#92400E] border-[#92400E]/20 dark:bg-[#92400E]/20 dark:text-[#FCD34D] dark:border-[#FCD34D]/30 font-medium; }
+  .status-resolved { @apply bg-[#D1FAE5] text-[#065F46] border-[#065F46]/20 dark:bg-[#065F46]/20 dark:text-[#6EE7B7] dark:border-[#6EE7B7]/30 font-medium; }
+  .status-closed { @apply bg-secondary text-muted-foreground border-border font-medium; }
   
-  .priority-urgent { @apply bg-destructive-muted text-destructive border-destructive/30; }
-  .priority-high { @apply bg-destructive-muted text-destructive border-destructive/20; }
-  .priority-medium { @apply bg-warning-muted text-warning border-warning/20; }
-  .priority-low { @apply bg-info-muted text-info border-info/20; }
+  .priority-urgent { @apply bg-[#FEE2E2] text-[#B91C1C] border-[#B91C1C]/25 dark:bg-[#B91C1C]/20 dark:text-[#FCA5A5] dark:border-[#FCA5A5]/30 font-semibold; }
+  .priority-high { @apply bg-[#FFEDD5] text-[#C2410C] border-[#C2410C]/25 dark:bg-[#C2410C]/20 dark:text-[#FDBA74] font-medium; }
+  .priority-medium { @apply bg-[#FEF3C7] text-[#B45309] border-[#B45309]/20 dark:bg-[#B45309]/20 dark:text-[#FCD34D] font-medium; }
+  .priority-low { @apply bg-[#F4F4F5] text-[#71717A] border-[#E4E4E7] dark:bg-[#27272A] dark:text-[#A1A1AA] dark:border-[#3F3F46] font-medium; }
 
   .dept-development { @apply bg-[hsl(var(--dept-development))] text-white; }
   .dept-marketing { @apply bg-[hsl(var(--dept-marketing))] text-white; }
@@ -441,46 +686,9 @@
     text-wrap: balance;
   }
 
-  /* ---- Background textures (theme-aware, deliberately faint) ----
-     Large surfaces read flat without them. Alpha values are tiny so text
-     contrast is never affected, in both light and dark themes. */
-  .texture-dots {
-    background-image: radial-gradient(hsl(var(--foreground) / 0.05) 1px, transparent 1px);
-    background-size: 22px 22px;
-  }
-
-  .texture-grid {
-    background-image:
-      linear-gradient(to right, hsl(var(--foreground) / 0.03) 1px, transparent 1px),
-      linear-gradient(to bottom, hsl(var(--foreground) / 0.03) 1px, transparent 1px);
-    background-size: 44px 44px;
-  }
-
-  .texture-noise {
-    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
-    background-size: 180px 180px;
-  }
-
-  .texture-glow {
-    background-image: radial-gradient(ellipse 60% 45% at 50% 0%, hsl(var(--primary) / 0.06), transparent 70%);
-    background-repeat: no-repeat;
-  }
-
-  /* App shell texture: dot grid + a soft primary glow bleeding down from
-     under the header. One class so every dashboard page gets the same
-     background without touching individual pages. */
+  /* Clean, quiet canvas — no decorative floating blobs or neon gradients */
   .app-texture {
     background-color: hsl(var(--background));
-    background-image:
-      radial-gradient(hsl(var(--foreground) / 0.045) 1px, transparent 1px),
-      radial-gradient(ellipse 60% 45% at 50% 0%, hsl(var(--primary) / 0.05), transparent 70%);
-    background-size: 22px 22px, 100% 460px;
-    background-repeat: repeat, no-repeat;
-  }
-  @media (prefers-reduced-motion: no-preference) {
-    .app-texture {
-      background-attachment: scroll, scroll;
-    }
   }
 
   /* Standard page rhythm — one container for all dashboard pages */
@@ -489,25 +697,32 @@
   }
 
   .page-header-title {
-    @apply font-display text-3xl font-semibold tracking-tight text-foreground;
+    @apply font-display text-xl sm:text-2xl font-bold tracking-tight text-foreground;
   }
 
   .page-header-sub {
-    @apply text-muted-foreground mt-1;
+    @apply text-muted-foreground text-xs mt-0.5;
   }
 
   .font-display {
-    font-family: var(--font-incognito), var(--font-inter), system-ui, sans-serif;
+    font-family: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
   }
   
   /* Hide scrollbar */
-  .scrollbar-hide {
+  .scrollbar-hide,
+  .no-scrollbar {
     -ms-overflow-style: none;
     scrollbar-width: none;
   }
-  .scrollbar-hide::-webkit-scrollbar {
+  .scrollbar-hide::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
+}
+
+/* Mobile ergonomics */
+* {
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Keyframes */

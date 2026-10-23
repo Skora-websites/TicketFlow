@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UserAvatar } from "./badges";
 import type { IComment as CommentModel, IUser as UserType } from "@/lib/db/models";
 import { Download, Pencil, Trash2, X, Check, Paperclip, Lock, MessageSquareDashed, CheckCheck } from "lucide-react";
@@ -133,6 +133,8 @@ export function ConversationPanel({
   }
   const [pending, setPending] = useState<PendingMsg[]>([]);
 
+  const isSubmittingRef = useRef(false);
+
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
     if (!f) return;
@@ -164,10 +166,14 @@ export function ConversationPanel({
     else if (e.type === "dragleave") setDragActive(false);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (isClosed) return;
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (isClosed || isSubmittingRef.current || isSubmitting) return;
     if (!replyText.trim() && !attachment) return;
+
+    isSubmittingRef.current = true;
+    setIsSubmitting(true);
+    setFormError("");
 
     const bodyText = replyText;
     const att = attachment;
@@ -188,21 +194,16 @@ export function ConversationPanel({
     ]);
     setReplyText("");
     setAttachment(null);
-    setIsSubmitting(true);
-    setFormError("");
 
     try {
       await onAddComment(bodyText, att || undefined, vis);
-      setPending((p) => p.map((m) => (m.localId === localId ? { ...m, state: "sent" } : m)));
-      // The authoritative copy arrives via SSE/poll; drop the optimistic
-      // copy shortly after so we don't double-render.
-      setTimeout(() => {
-        setPending((p) => p.filter((m) => m.localId !== localId));
-      }, 1500);
+      // Immediately drop optimistic copy on confirmation to avoid showing the message twice
+      setPending((p) => p.filter((m) => m.localId !== localId));
     } catch {
       setPending((p) => p.map((m) => (m.localId === localId ? { ...m, state: "failed" } : m)));
       setFormError("Couldn't send your message. Try again.");
     } finally {
+      isSubmittingRef.current = false;
       setIsSubmitting(false);
     }
   };
@@ -262,10 +263,33 @@ export function ConversationPanel({
     setEditError("");
   };
 
+  // Deduplicate comments defensively to guarantee unique keys and prevent duplicate bubble rendering
+  const displayComments = useMemo(() => {
+    const seen = new Set<string>();
+    return comments.filter((c) => {
+      const id = c?._id?.toString();
+      if (!id || seen.has(id)) return false;
+      seen.add(id);
+      return true;
+    });
+  }, [comments]);
+
+  // Filter out any pending optimistic message that is already in displayComments
+  const pendingToDisplay = useMemo(() => {
+    return pending.filter((m) => {
+      const alreadyInComments = displayComments.slice(-5).some(
+        (c) =>
+          c.body === m.body &&
+          (c as { visibility?: string }).visibility === m.visibility
+      );
+      return !alreadyInComments;
+    });
+  }, [pending, displayComments]);
+
   // Autoscroll on new content.
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
-  }, [comments.length, pending.length]);
+  }, [displayComments.length, pendingToDisplay.length]);
 
   const othersHaveRead = (d: Date) => othersReadAt && othersReadAt >= d;
 
@@ -302,9 +326,9 @@ export function ConversationPanel({
             In this conversation
           </span>
           <div className="flex flex-wrap items-center gap-3">
-            {chatParticipants.map((p) => (
-              <span key={p.id} className="inline-flex items-center gap-1.5" title={`${p.name} · ${kindLabel[p.kind]}`}>
-                <UserAvatar name={p.name} size="sm" />
+            {chatParticipants.map((p, idx) => (
+              <span key={`${p.id}-${p.kind}-${idx}`} className="inline-flex items-center gap-1.5" title={`${p.name} · ${kindLabel[p.kind]}`}>
+                <UserAvatar name={p.name} size="sm" avatar={(p as { avatar?: string }).avatar} />
                 <span className="text-sm font-medium text-foreground">{p.name}</span>
                 <span className="text-[11px] text-muted-foreground">· {kindLabel[p.kind]}</span>
               </span>
@@ -319,7 +343,7 @@ export function ConversationPanel({
         className="max-h-[60vh] space-y-1 overflow-y-auto rounded-xl border border-border bg-muted/20 p-4"
         aria-label="Conversation"
       >
-        {comments.length === 0 && pending.length === 0 && (
+        {displayComments.length === 0 && pendingToDisplay.length === 0 && (
           <div className="py-8 text-center">
             <MessageSquareDashed className="mx-auto mb-2 h-8 w-8 text-muted-foreground" aria-hidden />
             <p className="text-sm text-muted-foreground">
@@ -328,7 +352,7 @@ export function ConversationPanel({
           </div>
         )}
 
-        {comments.map((comment) => {
+        {displayComments.map((comment) => {
           const author = comment.authorId as UserType | undefined;
           const isOwn = author?._id?.toString() === currentUserId;
           const isSystem = (comment as { kind?: string }).kind === "system";
@@ -360,10 +384,10 @@ export function ConversationPanel({
               <div key={commentId} className="flex justify-end py-1.5">
                 <div
                   className={cn(
-                    "group max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5",
+                    "group max-w-[85%] rounded-xl rounded-br-xs px-3.5 py-2.5",
                     isInternal
-                      ? "border border-warning/40 bg-warning-muted"
-                      : "bg-primary text-primary-foreground"
+                      ? "border border-warning/40 bg-warning-muted text-warning-foreground"
+                      : "bg-primary text-primary-foreground shadow-xs"
                   )}
                   aria-label={`Your message${isInternal ? " (internal)" : ""}`}
                 >
@@ -445,13 +469,13 @@ export function ConversationPanel({
           // EVERYONE ELSE: left-aligned bubble with avatar + name (all roles).
           return (
             <div key={commentId} className="flex items-end gap-2 py-1.5" aria-label={`Message by ${author?.name || "unknown"}`}>
-              <UserAvatar name={author?.name || "Unknown"} role={author?.role as any} size="sm" />
+              <UserAvatar name={author?.name || "Unknown"} role={author?.role as any} size="sm" avatar={(author as { avatar?: string })?.avatar} />
               <div
                 className={cn(
-                  "max-w-[85%] rounded-2xl rounded-bl-sm px-4 py-2.5",
+                  "max-w-[85%] rounded-xl rounded-bl-xs px-3.5 py-2.5",
                   isInternal
                     ? "border border-warning/40 bg-warning-muted"
-                    : "border border-border bg-background"
+                    : "border border-border bg-card shadow-xs"
                 )}
               >
                 <div className="mb-0.5 flex flex-wrap items-center gap-x-2">
@@ -483,12 +507,12 @@ export function ConversationPanel({
         })}
 
         {/* Optimistic pending messages */}
-        {pending.map((m) => (
+        {pendingToDisplay.map((m) => (
           <div key={m.localId} className="flex justify-end py-1.5">
             <div
               className={cn(
-                "max-w-[85%] rounded-2xl rounded-br-sm px-4 py-2.5 opacity-90",
-                m.visibility === "internal" ? "border border-warning/40 bg-warning-muted" : "bg-primary text-primary-foreground"
+                "max-w-[85%] rounded-xl rounded-br-xs px-3.5 py-2.5 opacity-90",
+                m.visibility === "internal" ? "border border-warning/40 bg-warning-muted text-warning-foreground" : "bg-primary text-primary-foreground shadow-xs"
               )}
               aria-label={`Sending${m.visibility === "internal" ? " internal note" : ""}`}
             >
@@ -565,14 +589,18 @@ export function ConversationPanel({
           <div
             className={cn(
               "rounded-xl border p-1 transition-colors",
-              dragActive ? "border-dashed border-primary bg-primary/5" : "border-border"
+              internal
+                ? "border-warning/60 bg-warning/5"
+                : dragActive
+                ? "border-dashed border-primary bg-primary/5"
+                : "border-border bg-card"
             )}
             onDragEnter={handleDrag}
             onDragLeave={handleDrag}
             onDragOver={handleDrag}
             onDrop={handleDrop}
           >
-            <div className="flex gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               <input
                 ref={fileInputRef}
                 type="file"
@@ -586,7 +614,7 @@ export function ConversationPanel({
                 size="sm"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={!!attachment || isSubmitting}
-                className="h-10"
+                className="h-9 sm:h-10 px-2.5 sm:px-3 shrink-0"
                 aria-label="Attach a file"
               >
                 <Paperclip className="h-4 w-4" aria-hidden />
@@ -595,31 +623,55 @@ export function ConversationPanel({
               <textarea
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
-                placeholder={internal ? "Internal note — clients never see this…" : "Write a message…"}
-                className="flex-1 resize-none border-none bg-transparent text-sm focus:outline-none"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!isSubmittingRef.current && (replyText.trim() || attachment)) {
+                      void handleSubmit();
+                    }
+                  }
+                }}
+                placeholder={internal ? "Internal note — clients never see this…" : "Write a message… (Enter to send, Shift+Enter for newline)"}
+                className="flex-1 resize-none border-none bg-transparent text-base sm:text-sm focus:outline-none py-1"
                 rows={2}
                 disabled={isSubmitting}
                 aria-label={internal ? "Add an internal note" : "Write a message"}
               />
 
               {isStaff && (
-                <label className="flex cursor-pointer items-center gap-1.5 self-center rounded-lg px-2 py-1 text-xs font-medium text-warning hover:bg-warning-muted" title="Only staff can see internal notes">
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-center gap-1.5 self-center rounded-lg px-2 py-1 text-xs font-medium transition-colors shrink-0",
+                    internal
+                      ? "bg-warning text-warning-foreground font-bold"
+                      : "text-warning hover:bg-warning-muted"
+                  )}
+                  title="Only staff can see internal notes"
+                >
                   <input
                     type="checkbox"
                     checked={internal}
                     onChange={(e) => setInternal(e.target.checked)}
-                    className="accent-warning"
+                    className="accent-warning h-3.5 w-3.5"
                     aria-label="Internal note (staff only)"
                   />
-                  Internal
+                  <span className="hidden sm:inline">Internal</span>
+                  <Lock className="h-3 w-3 sm:hidden" />
                 </label>
               )}
             </div>
           </div>
 
           <div className="flex justify-end">
-            <Button type="submit" size="sm" loading={isSubmitting} disabled={!replyText.trim() && !attachment}>
-              {internal ? "Add internal note" : "Send"}
+            <Button
+              type="submit"
+              size="sm"
+              variant={internal ? "warning" : "default"}
+              loading={isSubmitting}
+              disabled={isSubmitting || (!replyText.trim() && !attachment)}
+              className="h-9 sm:h-8 px-4 text-xs font-bold"
+            >
+              {internal ? "Add internal note" : "Send message"}
             </Button>
           </div>
         </form>

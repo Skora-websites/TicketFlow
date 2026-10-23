@@ -167,10 +167,11 @@ export function TicketForm({
         <div className="space-y-2">
           <Label htmlFor="category">Category</Label>
           <Select
-            {...form.register("category")}
+            value={form.watch("category") || "other"}
+            onValueChange={(val) => form.setValue("category", val, { shouldValidate: true })}
             disabled={isLoading}
           >
-            <SelectTrigger>
+            <SelectTrigger id="category">
               <SelectValue placeholder="Select category" />
             </SelectTrigger>
             <SelectContent>
@@ -181,15 +182,19 @@ export function TicketForm({
               ))}
             </SelectContent>
           </Select>
+          {form.formState.errors.category && (
+            <p className="text-sm text-destructive">{form.formState.errors.category.message}</p>
+          )}
         </div>
 
         <div className="space-y-2">
           <Label htmlFor="priority">Priority</Label>
           <Select
-            {...form.register("priority")}
+            value={form.watch("priority") || "medium"}
+            onValueChange={(val) => form.setValue("priority", val as "low" | "medium" | "high" | "urgent", { shouldValidate: true })}
             disabled={isLoading}
           >
-            <SelectTrigger>
+            <SelectTrigger id="priority">
               <SelectValue placeholder="Select priority" />
             </SelectTrigger>
             <SelectContent>
@@ -199,6 +204,9 @@ export function TicketForm({
               <SelectItem value="urgent">Urgent</SelectItem>
             </SelectContent>
           </Select>
+          {form.formState.errors.priority && (
+            <p className="text-sm text-destructive">{form.formState.errors.priority.message}</p>
+          )}
         </div>
       </div>
 
@@ -217,7 +225,7 @@ export function TicketForm({
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-3">
             <input
               ref={(el) => { setFileInputEl(el); }}
               type="file"
@@ -231,14 +239,15 @@ export function TicketForm({
               variant="outline"
               onClick={() => fileInputEl?.click()}
               disabled={attachments.length >= MAX_FILES || isLoading}
+              className="w-full sm:w-auto"
             >
               <FileText className="w-4 h-4 mr-2" />
               {attachments.length ? "Add more files" : "Attach files"}
             </Button>
 
             {attachments.length === 0 && (
-              <p className="text-sm text-muted-foreground">
-                Drag &amp; drop or click to attach (up to {MAX_FILES} files, max 4MB each)
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Drag &amp; drop or tap to attach (up to {MAX_FILES} files, max 4MB each)
               </p>
             )}
           </div>
@@ -270,16 +279,17 @@ export function TicketForm({
         </div>
       </div>
 
-      <div className="flex justify-end gap-3 pt-4 border-t border-border">
+      <div className="flex flex-col-reverse sm:flex-row sm:justify-end gap-2.5 sm:gap-3 pt-4 border-t border-border">
         <Button
           type="button"
           variant="outline"
           onClick={() => router.back()}
           disabled={isLoading}
+          className="w-full sm:w-auto h-9.5 sm:h-8.5"
         >
           Cancel
         </Button>
-        <Button type="submit" loading={isLoading}>
+        <Button type="submit" loading={isLoading} className="w-full sm:w-auto h-9.5 sm:h-8.5 font-bold">
           {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : submitLabel}
         </Button>
       </div>

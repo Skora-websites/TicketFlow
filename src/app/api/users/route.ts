@@ -4,13 +4,14 @@ import { User } from "@/lib/db/models";
 import { requireApiRole, sanitizeSearch } from "@/lib/authz";
 import { hashPassword } from "@/lib/password";
 import { sendCredentialEmail, isSmtpConfigured } from "@/lib/mailer";
+import { enforceRateLimit, DB_QUERY_MAX_TIME_MS } from "@/lib/security";
 import { z } from "zod";
 import mongoose from "mongoose";
 import { randomBytes } from "node:crypto";
 
 const userQuerySchema = z.object({
   page: z.coerce.number().positive().default(1),
-  limit: z.coerce.number().positive().max(100).default(20),
+  limit: z.coerce.number().positive().max(50).default(20),
   role: z.enum(["super_admin", "manager", "team", "client"]).or(z.literal("")).optional(),
   departmentId: z.string().optional(),
   // z.coerce.boolean() turns ?active=false into true (Boolean("false") is
@@ -87,8 +88,9 @@ export async function GET(request: NextRequest) {
         .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
+        .maxTimeMS(DB_QUERY_MAX_TIME_MS)
         .lean(),
-      User.countDocuments(filter),
+      User.countDocuments(filter).maxTimeMS(DB_QUERY_MAX_TIME_MS),
     ]);
 
     return NextResponse.json({
@@ -114,6 +116,11 @@ export async function POST(request: NextRequest) {
     const authResult = await requireApiRole("super_admin", "manager");
     if (authResult instanceof NextResponse) return authResult;
     const user = authResult;
+
+    // Rate Limit: 10 user creations / min per manager/admin
+    const rateCheck = await enforceRateLimit(`users:create:${user.id}`, 10, 60_000, "Too many users created. Please wait a minute.");
+    if (rateCheck) return rateCheck;
+
     await connectDB();
 
     const body = await request.json();

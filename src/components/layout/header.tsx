@@ -6,6 +6,7 @@ import Link from "next/link";
 import { Moon, Sun, User, LogOut } from "lucide-react";
 import { useTheme } from "next-themes";
 import { useSession, signOut } from "next-auth/react";
+import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -104,12 +105,12 @@ function ThemeToggle({
 
   const active = mounted ? theme : undefined; // undefined = render neutral
   const base =
-    "flex h-7 w-7 items-center justify-center rounded-full transition-colors";
+    "flex h-6 w-6 items-center justify-center rounded-full transition-colors";
   return (
     <div
       role="radiogroup"
       aria-label="Color theme"
-      className="flex items-center rounded-full bg-muted/60 p-0.5"
+      className="flex items-center rounded-md bg-secondary p-0.5 border border-border"
     >
       <button
         type="button"
@@ -120,11 +121,11 @@ function ThemeToggle({
         className={cn(
           base,
           active === "light"
-            ? "bg-background text-foreground shadow-sm"
+            ? "bg-card text-foreground shadow-xs"
             : "text-muted-foreground hover:text-foreground"
         )}
       >
-        <Sun className="h-3.5 w-3.5" aria-hidden />
+        <Sun className="h-3 w-3" aria-hidden />
       </button>
       <button
         type="button"
@@ -135,11 +136,11 @@ function ThemeToggle({
         className={cn(
           base,
           active === "dark"
-            ? "bg-background text-foreground shadow-sm"
+            ? "bg-card text-foreground shadow-xs"
             : "text-muted-foreground hover:text-foreground"
         )}
       >
-        <Moon className="h-3.5 w-3.5" aria-hidden />
+        <Moon className="h-3 w-3" aria-hidden />
       </button>
     </div>
   );
@@ -153,8 +154,8 @@ export function Header() {
   const isClient = user?.role === "client";
 
   return (
-    <header className="sticky top-0 z-30 h-16 w-full border-b border-border/70 bg-background/85 backdrop-blur-xl">
-      <div className="flex h-full items-center gap-2 px-4 sm:gap-3 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-30 h-12 w-full border-b border-border bg-card">
+      <div className="flex h-full items-center gap-3 px-4 sm:gap-4 sm:px-6">
         <MobileSidebar />
         <div className="min-w-0 flex-1">
           <Breadcrumbs pathname={pathname} />
@@ -162,10 +163,11 @@ export function Header() {
 
         <HeaderSearch />
 
-        {/* Right cluster — controls sit in one pill so the bar reads as a
-            single toolbar in both themes (fixes the old mismatched ghost
-            buttons + floating badge). */}
-        <div className="flex items-center gap-1 rounded-full border border-border/70 bg-card/60 p-1 shadow-sm">
+        <div className="hidden items-center gap-1.5 font-medium text-xs text-muted-foreground lg:flex">
+          <span>{format(new Date(), "EEEE, MMMM d")}</span>
+        </div>
+
+        <div className="flex items-center gap-2">
           <ThemeToggle theme={resolvedTheme} setTheme={setTheme} />
 
           <NotificationsBell />
@@ -174,12 +176,12 @@ export function Header() {
             <DropdownMenuTrigger asChild>
               <button
                 type="button"
-                className="ml-0.5 rounded-full outline-none ring-primary/40 transition-shadow focus-visible:ring-2"
+                className="rounded-full outline-none ring-primary/20 transition-all focus-visible:ring-2"
                 aria-label="Open user menu"
               >
-                <Avatar className="h-8 w-8 border border-border/60">
+                <Avatar className="h-7 w-7 border border-border">
                   <AvatarImage src={user?.image || ""} alt={user?.name || ""} />
-                  <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
+                  <AvatarFallback className="bg-secondary text-[11px] font-medium text-foreground">
                     {user?.name?.charAt(0).toUpperCase() || "U"}
                   </AvatarFallback>
                 </Avatar>

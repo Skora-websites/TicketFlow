@@ -47,6 +47,7 @@ interface TicketTableProps {
   currentDepartmentId?: string;
   /** Called after a successful mutation so the parent can re-sync. */
   onChanged?: () => void;
+  className?: string;
 }
 
 export function TicketTable({
@@ -55,6 +56,7 @@ export function TicketTable({
   currentUserRole,
   currentDepartmentId,
   onChanged,
+  className,
 }: TicketTableProps) {
   const router = useRouter();
   const { toast } = useToast();
@@ -340,11 +342,11 @@ export function TicketTable({
       role="grid"
       aria-label="Ticket list — use J and K to move, Enter to open"
       aria-activedescendant={selected !== null ? `ticket-row-${selected}` : undefined}
-      className="focus-visible:outline-none"
+      className={cn("overflow-hidden rounded-lg border border-border bg-card shadow-xs focus-visible:outline-none", className)}
     >
       <table className="w-full text-sm">
         <thead>
-          <tr className="border-b border-border text-left">
+          <tr className="border-b border-border bg-secondary/50 text-left">
             {columns.map((col) => (
               <th
                 key={col.label}
@@ -356,23 +358,23 @@ export function TicketTable({
                       : "descending"
                     : undefined
                 }
-                className={cn("px-3 py-2.5 font-medium text-muted-foreground", col.className)}
+                className={cn("px-4 py-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground", col.className)}
               >
                 {col.key ? (
                   <button
                     type="button"
                     onClick={() => toggleSort(col.key!)}
-                    className="inline-flex items-center gap-1 rounded transition-colors hover:text-foreground"
+                    className="inline-flex items-center gap-1.5 rounded transition-colors hover:text-foreground"
                   >
                     {col.label}
                     {col.key === sortKey ? (
                       sortDir === "asc" ? (
-                        <ChevronUp className="h-3.5 w-3.5" aria-hidden />
+                        <ChevronUp className="h-3.5 w-3.5 text-primary" aria-hidden />
                       ) : (
-                        <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                        <ChevronDown className="h-3.5 w-3.5 text-primary" aria-hidden />
                       )
                     ) : (
-                      <ArrowUpDown className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-0" aria-hidden />
+                      <ArrowUpDown className="h-3 w-3 opacity-0 transition-opacity group-hover:opacity-40" aria-hidden />
                     )}
                   </button>
                 ) : (
@@ -380,7 +382,7 @@ export function TicketTable({
                 )}
               </th>
             ))}
-            <th className="w-40 px-3 py-2.5">
+            <th className="w-40 px-4 py-3">
               <span className="sr-only">Quick actions</span>
             </th>
           </tr>
@@ -391,7 +393,8 @@ export function TicketTable({
             const editable = canEditStatus(t);
             const assignee = t.assigneeId as TicketCardTicket["assigneeId"];
             // Original filer — client, another agent, a manager, etc.
-            const senderName = (t.requesterId as { name?: string } | undefined)?.name;
+            const requester = t.requesterId as { name?: string; avatar?: string } | undefined;
+            const senderName = requester?.name;
             const dept = t.departmentId as { name?: string; color?: string } | undefined;
             return (
               <tr
@@ -400,8 +403,8 @@ export function TicketTable({
                 data-row-index={index}
                 aria-selected={isSelected}
                 className={cn(
-                  "group border-b border-border/50 transition-colors last:border-0",
-                  isSelected ? "bg-primary/5" : "hover:bg-muted/40"
+                  "group border-b border-border/70 transition-colors last:border-0",
+                  isSelected ? "bg-accent-soft/70 text-foreground" : "hover:bg-secondary/40"
                 )}
               >
                 <td className="px-3 py-2.5 hidden sm:table-cell">
@@ -424,7 +427,7 @@ export function TicketTable({
                 <td className="max-w-28 truncate px-3 py-2.5 hidden xl:table-cell">
                   {senderName ? (
                     <span className="inline-flex items-center gap-1.5" title={senderName}>
-                      <UserAvatar name={senderName} size="sm" />
+                      <UserAvatar name={senderName} size="sm" avatar={requester?.avatar} />
                       <span className="truncate text-xs text-muted-foreground">{senderName}</span>
                     </span>
                   ) : (
@@ -465,7 +468,7 @@ export function TicketTable({
                     </Select>
                   ) : assignee ? (
                     <span title={assignee.name}>
-                      <UserAvatar name={assignee.name} size="sm" />
+                      <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
                     </span>
                   ) : (
                     <span
@@ -523,7 +526,7 @@ export function TicketTable({
                           <div className="flex items-center justify-end gap-1">
                             <Button
                               type="button"
-                              variant="ghost"
+                              variant="outline"
                               size="sm"
                               className="h-7 px-2 text-xs"
                               disabled={busyId === t._id}
@@ -549,9 +552,9 @@ export function TicketTable({
                       ) : (
                         <Button
                           type="button"
-                          variant="ghost"
+                          variant="destructive-outline"
                           size="sm"
-                          className="h-7 gap-1 px-2 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          className="h-7 gap-1 px-2 text-xs"
                           disabled={busyId === t._id}
                           onClick={() => setDenyArmId(t._id)}
                         >

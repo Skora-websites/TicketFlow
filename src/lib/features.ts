@@ -13,4 +13,4 @@
  * (scripts/transfer-smoke.js) so the feature can be re-activated later by
  * flipping this single flag to true.
  */
-export const TRANSFERS_ENABLED = false;
+export const TRANSFERS_ENABLED = true;

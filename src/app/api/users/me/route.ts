@@ -10,6 +10,7 @@ const meUpdateSchema = z
   .object({
     name: z.string().min(2, "Name must be at least 2 characters").optional(),
     email: z.string().email("Invalid email").optional(),
+    avatar: z.string().max(1_000_000, "Avatar image is too large").nullable().optional(),
     currentPassword: z.string().min(1).optional(),
     newPassword: z.string().min(8, "Password must be at least 8 characters").optional(),
   })
@@ -17,6 +18,24 @@ const meUpdateSchema = z
     message: "Current password is required to set a new password",
     path: ["currentPassword"],
   });
+
+export async function GET() {
+  try {
+    const authUser = await getUser();
+    if (!authUser) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+    await connectDB();
+    const user = await User.findById(authUser.id).select("-passwordHash").lean();
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+    return NextResponse.json({ user });
+  } catch (error) {
+    console.error("GET /api/users/me error:", error);
+    return NextResponse.json({ error: "Failed to fetch user" }, { status: 500 });
+  }
+}
 
 export async function PATCH(request: NextRequest) {
   try {
@@ -33,7 +52,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { name, email, currentPassword, newPassword } = parsed.data;
+    const { name, email, avatar, currentPassword, newPassword } = parsed.data;
 
     const user = await User.findById(authUser.id);
     if (!user) {
@@ -42,8 +61,25 @@ export async function PATCH(request: NextRequest) {
 
     const updateData: Record<string, unknown> = {};
 
+    let passwordVerified = false;
+    const verifyCurrentPassword = async () => {
+      if (passwordVerified) return true;
+      if (!currentPassword) return false;
+      const ok = await verifyPassword(currentPassword, user.passwordHash);
+      if (ok) passwordVerified = true;
+      return ok;
+    };
+
     if (name) updateData.name = name;
+    if (avatar !== undefined) updateData.avatar = avatar;
     if (email && email.toLowerCase() !== user.email) {
+      if (!currentPassword) {
+        return NextResponse.json({ error: "Current password is required to change email" }, { status: 400 });
+      }
+      const ok = await verifyCurrentPassword();
+      if (!ok) {
+        return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
+      }
       const existing = await User.findOne({ email: email.toLowerCase(), _id: { $ne: user._id } });
       if (existing) {
         return NextResponse.json({ error: "Email already in use" }, { status: 409 });
@@ -52,7 +88,7 @@ export async function PATCH(request: NextRequest) {
     }
 
     if (newPassword) {
-      const ok = await verifyPassword(currentPassword!, user.passwordHash);
+      const ok = await verifyCurrentPassword();
       if (!ok) {
         return NextResponse.json({ error: "Current password is incorrect" }, { status: 401 });
       }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { signIn } from "next-auth/react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -75,6 +76,20 @@ export default function SignupPage() {
         return;
       }
 
+      if (data.autoActive) {
+        const signResult = await signIn("credentials", {
+          email,
+          password,
+          redirect: false,
+          callbackUrl: "/client/tickets",
+        });
+        if (!signResult?.error) {
+          router.push("/client/tickets");
+          router.refresh();
+          return;
+        }
+      }
+
       router.push("/login?registered=true");
     } catch {
       setError("Something went wrong. Please try again.");
@@ -84,7 +99,7 @@ export default function SignupPage() {
   };
 
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
+    <div className="dark min-h-screen grid lg:grid-cols-2 bg-background text-foreground" data-color-theme="purple">
       <AuthBrandPanel />
       <main className="flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">

@@ -108,9 +108,9 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       transfer?: Record<string, unknown> | null;
     };
 
-    if (ticketDoc.transfer) {
+    if (ticketDoc.transfer && ticketDoc.transfer.status === "pending") {
       return NextResponse.json(
-        { error: `A transfer is already ${ticketDoc.transfer.status} for this ticket` },
+        { error: "A transfer is already pending for this ticket" },
         { status: 409 }
       );
     }

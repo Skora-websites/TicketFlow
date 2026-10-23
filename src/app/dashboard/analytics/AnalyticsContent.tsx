@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { formatAvgResolution } from "@/lib/formatAvgResolution";
 import {
   BarChart,
@@ -19,7 +20,8 @@ import {
   AreaChart,
   Area,
 } from "recharts";
-import { AlertTriangle, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { AlertTriangle, TrendingUp, TrendingDown, Minus, Layers } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { statusColors, priorityColors } from "@/lib/charts";
 import { ChartTooltip } from "@/components/charts/ChartTooltip";
@@ -27,19 +29,23 @@ import { ChartTooltip } from "@/components/charts/ChartTooltip";
 interface ChartCardProps {
   title: string;
   description?: string;
+  badge?: React.ReactNode;
   children: React.ReactNode;
   className?: string;
 }
 
-function ChartCard({ title, description, children, className }: ChartCardProps) {
+function ChartCard({ title, description, badge, children, className }: ChartCardProps) {
   return (
-    <Card className={cn("card-elevated", className)}>
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">{title}</CardTitle>
-        {description && <p className="text-sm text-muted-foreground mt-1">{description}</p>}
-      </CardHeader>
-      <CardContent>{children}</CardContent>
-    </Card>
+    <div className={cn("rounded-2xl border border-border bg-card p-5 shadow-sm", className)}>
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <h2 className="text-[15px] font-bold text-foreground tracking-tight">{title}</h2>
+          {badge}
+        </div>
+        {description && <p className="text-[12px] text-muted-foreground mt-0.5">{description}</p>}
+      </div>
+      <div>{children}</div>
+    </div>
   );
 }
 
@@ -126,28 +132,41 @@ export function AnalyticsContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse" aria-label="Loading analytics" aria-busy="true">
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1, 2, 3, 4].map((i) => (
+      <div className="space-y-6" aria-label="Loading analytics" aria-busy="true">
+        {/* Page Header */}
+        <div>
+          <Skeleton className="h-8 w-36 rounded-md mb-1.5" />
+          <Skeleton className="h-4 w-80 rounded-md" />
+        </div>
+
+        {/* Shared Horizontal Metrics Strip */}
+        <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+          <div className="grid grid-cols-2 divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-4 sm:p-5">
+                <Skeleton className="h-3.5 w-24 rounded" />
+                <div className="mt-2 flex items-baseline gap-2">
+                  <Skeleton className="h-7 w-16 rounded" />
+                  <Skeleton className="h-3 w-16 rounded" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Charts Rows */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          {[1, 2, 3, 4, 5, 6].map((i) => (
             <Card key={i} className="card-elevated">
-              <CardContent className="p-6">
-                <div className="h-4 bg-muted rounded w-1/4 mb-2" />
-                <div className="h-8 bg-muted rounded w-1/3" />
+              <CardHeader>
+                <Skeleton className="h-5 w-40 rounded" />
+                <Skeleton className="h-3.5 w-60 rounded mt-1.5" />
+              </CardHeader>
+              <CardContent>
+                <Skeleton className="h-64 w-full rounded-xl" />
               </CardContent>
             </Card>
           ))}
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="card-elevated"><CardContent className="h-64" /></Card>
-          <Card className="card-elevated"><CardContent className="h-64" /></Card>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="card-elevated"><CardContent className="h-64" /></Card>
-          <Card className="card-elevated"><CardContent className="h-64" /></Card>
-        </div>
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="card-elevated"><CardContent className="h-64" /></Card>
-          <Card className="card-elevated"><CardContent className="h-64" /></Card>
         </div>
       </div>
     );
@@ -195,92 +214,230 @@ export function AnalyticsContent() {
         </p>
       </div>
 
-      {/* Summary Stats */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Tickets"
-          value={overview.total}
-          icon={<TrendingUp className="w-6 h-6 text-primary" />}
-          bgColor="bg-primary-muted"
-          trend={overview.total > 0 ? { value: "Overall", type: "neutral" } : undefined}
-        />
-        <StatCard
-          title="Open Tickets"
-          value={overview.open}
-          icon={<TrendingUp className="w-6 h-6 text-info" />}
-          bgColor="bg-info-muted"
-        />
-        <StatCard
-          title="Avg. Resolution"
-          value={formatAvgResolution(overview.avgResolutionDays, overview.avgResolutionHours)}
-          icon={<TrendingUp className="w-6 h-6 text-warning" />}
-          bgColor="bg-warning-muted"
-        />
-        <StatCard
-          title="Resolution Rate"
-          value={overview.total > 0 ? `${Math.round(((overview.resolved + overview.closed) / overview.total) * 100)}%` : "0%"}
-          icon={<TrendingUp className="w-6 h-6 text-success" />}
-          bgColor="bg-success-muted"
-        />
+      {/* Shared Horizontal Metrics Strip */}
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-xs">
+        <div className="grid grid-cols-2 divide-y divide-border sm:grid-cols-4 sm:divide-x sm:divide-y-0">
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">Total Tickets</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {overview.total}
+              </span>
+              <span className="text-xs text-muted-foreground">all-time</span>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">Open Tickets</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {overview.open}
+              </span>
+              <span className="text-xs text-muted-foreground">awaiting resolution</span>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">Avg. Resolution</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {formatAvgResolution(overview.avgResolutionDays, overview.avgResolutionHours)}
+              </span>
+            </div>
+          </div>
+
+          <div className="p-4 sm:p-5">
+            <span className="text-xs font-medium text-muted-foreground">Resolution Rate</span>
+            <div className="mt-1 flex items-baseline gap-2">
+              <span className="font-mono text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+                {overview.total > 0 ? `${Math.round(((overview.resolved + overview.closed) / overview.total) * 100)}%` : "0%"}
+              </span>
+              <span className="text-xs text-success">completed</span>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Charts Row 1 */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Tickets by Status - Bar Chart */}
-        <ChartCard title="Tickets by Status" description="Distribution of tickets across all statuses">
+        <ChartCard
+          title="Tickets by Status"
+          description="Distribution of tickets across all statuses"
+          badge={
+            <Badge
+              variant="outline"
+              className="border-none bg-blue-500/10 text-blue-500 font-medium px-2 py-0.5 text-xs inline-flex items-center gap-1 ml-1"
+            >
+              <span>{overview.total} total</span>
+            </Badge>
+          }
+        >
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={charts.byStatus.length > 0 ? charts.byStatus : [{ status: "No data", count: 0 }]}
                 layout="vertical"
+                margin={{ top: 5, right: 15, left: 0, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.15} stroke="hsl(var(--border))" />
+                <XAxis
+                  type="number"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                />
                 <YAxis
                   type="category"
                   dataKey="status"
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                  width={100}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "hsl(var(--foreground))", fontSize: 12, fontWeight: 500 }}
+                  width={95}
+                  tickFormatter={(val) => {
+                    const labels: Record<string, string> = {
+                      open: "Open",
+                      in_progress: "In Progress",
+                      on_hold: "On Hold",
+                      resolved: "Resolved",
+                      closed: "Closed",
+                    };
+                    return labels[val] || val.replace("_", " ");
+                  }}
                 />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }} />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const data = payload[0].payload as { status: string; count: number };
+                    const colors: Record<string, { label: string; fill: string }> = {
+                      open: { label: "Open", fill: "#3B82F6" },
+                      in_progress: { label: "In Progress", fill: "#F59E0B" },
+                      on_hold: { label: "On Hold", fill: "#A855F7" },
+                      resolved: { label: "Resolved", fill: "#10B981" },
+                      closed: { label: "Closed", fill: "#64748B" },
+                    };
+                    const meta = colors[data.status] || { label: data.status.replace("_", " "), fill: "#3B82F6" };
+                    const pct = overview.total > 0 ? Math.round((data.count / overview.total) * 100) : 0;
+                    return (
+                      <div className="rounded-xl border border-border bg-popover/95 px-3 py-2 text-xs shadow-xl backdrop-blur-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: meta.fill }} />
+                          <span className="font-semibold text-foreground">{meta.label}</span>
+                          <span className="font-mono font-bold text-foreground tabular-nums ml-auto pl-3">{data.count}</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground pl-4.5">
+                          {pct}% of workload
+                        </p>
+                      </div>
+                    );
+                  }}
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.15 }}
+                />
                 <Bar
                   dataKey="count"
-                  radius={[0, 4, 4, 0]}
+                  radius={[0, 8, 8, 0]}
+                  barSize={16}
+                  background={{ fill: "hsl(var(--muted)/0.25)", radius: 8 }}
                 >
-                  {charts.byStatus.map((entry, index) => (
-                    <Cell key={index} fill={statusColors[entry.status as keyof typeof statusColors] || "hsl(var(--primary))"} />
-                  ))}
+                  {charts.byStatus.map((entry, index) => {
+                    const colors: Record<string, string> = {
+                      open: "#3B82F6",
+                      in_progress: "#F59E0B",
+                      on_hold: "#A855F7",
+                      resolved: "#10B981",
+                      closed: "#64748B",
+                    };
+                    return (
+                      <Cell
+                        key={index}
+                        fill={colors[entry.status] || "#3B82F6"}
+                      />
+                    );
+                  })}
                 </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>
         </ChartCard>
 
-        {/* Tickets by Priority - Pie Chart */}
-        <ChartCard title="Tickets by Priority" description="Priority distribution of all tickets">
+        {/* Tickets by Priority - Rounded Donut Chart */}
+        <ChartCard
+          title="Tickets by Priority"
+          description="Priority distribution of all tickets"
+          badge={
+            <Badge
+              variant="outline"
+              className="border-none bg-emerald-500/10 text-emerald-500 font-medium px-2 py-0.5 text-xs inline-flex items-center gap-1 ml-1"
+            >
+              <TrendingUp className="h-3.5 w-3.5" />
+              <span>{overview.total > 0 ? `${Math.round(((overview.resolved + overview.closed) / overview.total) * 100)}%` : "100%"}</span>
+            </Badge>
+          }
+        >
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const data = payload[0].payload as { priority: string; count: number; fill: string };
+                    const total = charts.byPriority.reduce((s, p) => s + p.count, 0);
+                    const pct = total > 0 ? Math.round((data.count / total) * 100) : 0;
+                    return (
+                      <div className="rounded-xl border border-border bg-popover/95 px-3 py-2 text-xs shadow-xl backdrop-blur-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: data.fill }} />
+                          <span className="font-semibold text-foreground capitalize">{data.priority}</span>
+                          <span className="font-mono font-bold text-foreground tabular-nums ml-auto pl-3">{data.count}</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground pl-4.5">
+                          {pct}% of tickets
+                        </p>
+                      </div>
+                    );
+                  }}
+                  cursor={false}
+                />
                 <Pie
-                  data={charts.byPriority.length > 0 ? charts.byPriority : [{ priority: "No data", count: 1 }]}
+                  data={charts.byPriority.map((entry) => {
+                    const theme: Record<string, string> = {
+                      urgent: "#F43F5E",
+                      high: "#F59E0B",
+                      medium: "#3B82F6",
+                      low: "#10B981",
+                      other: "#A855F7",
+                    };
+                    return {
+                      ...entry,
+                      fill: theme[entry.priority.toLowerCase()] || "#A855F7",
+                    };
+                  })}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={100}
-                  paddingAngle={2}
+                  innerRadius={45}
+                  outerRadius={80}
+                  cornerRadius={8}
+                  paddingAngle={5}
                   dataKey="count"
                   nameKey="priority"
-                  label={({ name, percent }) => `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`}
-                  labelLine={false}
+                  stroke="none"
                 >
-                  {charts.byPriority.map((entry, index) => (
-                    <Cell
-                      key={index}
-                      fill={priorityColors[entry.priority as keyof typeof priorityColors] || "hsl(var(--primary))"}
-                    />
-                  ))}
+                  {charts.byPriority.map((entry, index) => {
+                    const theme: Record<string, string> = {
+                      urgent: "#F43F5E",
+                      high: "#F59E0B",
+                      medium: "#3B82F6",
+                      low: "#10B981",
+                      other: "#A855F7",
+                    };
+                    return (
+                      <Cell
+                        key={index}
+                        fill={theme[entry.priority.toLowerCase()] || "#A855F7"}
+                      />
+                    );
+                  })}
                 </Pie>
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -290,23 +447,81 @@ export function AnalyticsContent() {
       {/* Charts Row 2 */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Tickets by Department */}
-        <ChartCard title="Tickets by Department" description="Ticket volume per department">
+        <ChartCard
+          title="Tickets by Department"
+          description="Ticket volume per department"
+          badge={
+            <Badge
+              variant="outline"
+              className="border-none bg-purple-500/10 text-purple-500 font-medium px-2 py-0.5 text-xs inline-flex items-center gap-1 ml-1"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              <span>{charts.byDepartment.length} teams</span>
+            </Badge>
+          }
+        >
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart
                 data={charts.byDepartment.length > 0 ? charts.byDepartment : [{ department: "No data", count: 0 }]}
                 layout="vertical"
+                margin={{ top: 5, right: 15, left: 0, bottom: 5 }}
               >
-                <CartesianGrid strokeDasharray="2 4" stroke="hsl(var(--border))" />
-                <XAxis type="number" tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
+                <CartesianGrid horizontal={false} strokeDasharray="3 3" opacity={0.15} stroke="hsl(var(--border))" />
+                <XAxis
+                  type="number"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 11 }}
+                />
                 <YAxis
                   type="category"
                   dataKey="department"
-                  tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }}
-                  width={120}
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: "hsl(var(--foreground))", fontSize: 12, fontWeight: 500 }}
+                  width={110}
                 />
-                <Tooltip content={<ChartTooltip />} cursor={{ fill: "hsl(var(--muted))", opacity: 0.5 }} />
-                <Bar dataKey="count" radius={[0, 4, 4, 0]} fill="hsl(var(--primary))" />
+                <Tooltip
+                  content={({ active, payload }) => {
+                    if (!active || !payload?.length) return null;
+                    const data = payload[0].payload as { department: string; count: number };
+                    const palette = ["#3B82F6", "#EC4899", "#10B981", "#F59E0B", "#8B5CF6"];
+                    const index = charts.byDepartment.findIndex((d) => d.department === data.department);
+                    const color = palette[Math.max(0, index) % palette.length];
+                    const total = charts.byDepartment.reduce((s, d) => s + d.count, 0);
+                    const pct = total > 0 ? Math.round((data.count / total) * 100) : 0;
+                    return (
+                      <div className="rounded-xl border border-border bg-popover/95 px-3 py-2 text-xs shadow-xl backdrop-blur-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="h-2.5 w-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                          <span className="font-semibold text-foreground">{data.department}</span>
+                          <span className="font-mono font-bold text-foreground tabular-nums ml-auto pl-3">{data.count}</span>
+                        </div>
+                        <p className="mt-1 text-[11px] text-muted-foreground pl-4.5">
+                          {pct}% of team workload
+                        </p>
+                      </div>
+                    );
+                  }}
+                  cursor={{ fill: "hsl(var(--muted))", opacity: 0.15 }}
+                />
+                <Bar
+                  dataKey="count"
+                  radius={[0, 8, 8, 0]}
+                  barSize={16}
+                  background={{ fill: "hsl(var(--muted)/0.25)", radius: 8 }}
+                >
+                  {charts.byDepartment.map((_, index) => {
+                    const palette = ["#3B82F6", "#EC4899", "#10B981", "#F59E0B", "#8B5CF6"];
+                    return (
+                      <Cell
+                        key={index}
+                        fill={palette[index % palette.length]}
+                      />
+                    );
+                  })}
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           </div>

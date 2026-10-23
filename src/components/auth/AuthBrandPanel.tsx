@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
  */
 export function AuthBrandPanel() {
   return (
-    <aside className="hidden lg:flex flex-col justify-between bg-[hsl(222_35%_13%)] text-white p-12">
+    <aside className="hidden lg:flex flex-col justify-between bg-[hsl(264_38%_9%)] border-r border-[#261836] text-white p-12">
       <Link href="/" className="flex items-center gap-2.5">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary font-display text-lg font-bold text-primary-foreground">T</span>
         <span className="font-display text-xl font-bold tracking-tight">TicketFlow</span>

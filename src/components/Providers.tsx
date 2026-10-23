@@ -5,12 +5,26 @@ import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
 import { ReactNode } from "react";
 
+import { usePathname } from "next/navigation";
+
+import { ColorThemeProvider } from "@/components/ColorThemeProvider";
+
 export function Providers({ children }: { children: ReactNode }) {
+  const pathname = usePathname();
+  const isApp = pathname?.startsWith("/dashboard") || pathname?.startsWith("/client");
+
   return (
     <SessionProvider>
-      <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-        {children}
-        <Toaster />
+      <ThemeProvider
+        attribute="class"
+        defaultTheme="dark"
+        enableSystem={Boolean(isApp)}
+        forcedTheme={isApp ? undefined : "dark"}
+      >
+        <ColorThemeProvider isApp={Boolean(isApp)}>
+          {children}
+          <Toaster />
+        </ColorThemeProvider>
       </ThemeProvider>
     </SessionProvider>
   );

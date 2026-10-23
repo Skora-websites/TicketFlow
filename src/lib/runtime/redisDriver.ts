@@ -108,9 +108,18 @@ export async function createRedisRuntime(url?: string): Promise<RuntimeDriver> {
 
     async checkRate(key, limit, windowMs) {
       try {
-        const n = await publisher.incr(RATE_PREFIX + key);
-        if (n === 1) await publisher.pexpire(RATE_PREFIX + key, windowMs);
-        return n > limit;
+        const fullKey = RATE_PREFIX + key;
+        const res = await (publisher as unknown as { eval: (script: string, numkeys: number, key: string, arg: number) => Promise<number> }).eval(
+          `local current = redis.call('INCR', KEYS[1])
+           if current == 1 then
+             redis.call('PEXPIRE', KEYS[1], ARGV[1])
+           end
+           return current`,
+          1,
+          fullKey,
+          windowMs
+        );
+        return Number(res) > limit;
       } catch (err) {
         logOnce("checkRate", err);
         return false; // fail open — never lock users out because Redis is down

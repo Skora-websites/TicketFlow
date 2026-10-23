@@ -502,10 +502,10 @@ export function StatusPill({ online = true }: { online?: boolean }) {
 /* ---------- time-axis tick ---------- */
 /* ---------- squiggle canvas render (pixel look, reusable) ---------- */
 export function pixelSvg({
-  palette,
+  _palette,
   children,
 }: {
-  palette: Record<string, number[]>;
+  _palette?: Record<string, number[]>;
   children: React.ReactNode;
 }) {
   /* children placeholder — render via canvas */
@@ -559,7 +559,7 @@ export function BarStrip({ bars }: { bars: Bar[] }) {
   const max = Math.max(...bars.map((b) => b.value), 1);
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-      {bars.map((b, i) => {
+      {bars.map((b) => {
         const color = b.color ?? SYRUP.tick;
         const pct = Math.min((b.value / max) * 100, 100);
         return (
@@ -615,7 +615,7 @@ export function BarStrip({ bars }: { bars: Bar[] }) {
 
 /* ---------- squiggle canvas render (pixel look, reusable) ---------- */
 
-function PixelSquiggle({ color, children }: { color: number[]; children?: React.ReactNode }) {
+export function PixelSquiggle({ _color, children }: { _color?: number[]; children?: React.ReactNode }) {
   /* squiggle-style pixel art for ticket/spacing/colour — reused in hero, rules, and highlight sections */
   /* returns the wrapped children with pixel-style canvas edge treatment */
   return (
@@ -624,6 +624,4 @@ function PixelSquiggle({ color, children }: { color: number[]; children?: React.
     </>
   );
 }
-
-export type { PixelSquiggle };
 

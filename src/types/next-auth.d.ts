@@ -25,5 +25,6 @@ declare module "next-auth/jwt" {
     departmentId?: string;
     ticketAccess?: "department" | "assigned";
     remember?: boolean;
+    image?: string | null;
   }
 }

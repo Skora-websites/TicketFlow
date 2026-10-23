@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { UserAvatar, DepartmentBadge } from "@/components/tickets";
 import {
@@ -63,6 +64,7 @@ interface UserWithDept {
   name: string;
   email: string;
   role: string;
+  avatar?: string;
   departmentId?: IDepartment;
   ticketAccess?: "department" | "assigned";
   reportingManagerId?: string;
@@ -302,44 +304,72 @@ export function UsersContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse" aria-label="Loading users" aria-busy="true">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6" aria-label="Loading users" aria-busy="true">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <div className="h-8 bg-muted rounded w-1/4 mb-2" />
-            <div className="h-4 bg-muted rounded w-1/3" />
+            <Skeleton className="h-8 w-32 rounded-md mb-1.5" />
+            <Skeleton className="h-4 w-60 rounded-md" />
           </div>
+          <Skeleton className="w-full sm:w-28 h-9.5 sm:h-9 rounded-lg" />
         </div>
+
+        {/* Filters Card */}
         <Card className="card-elevated">
-          <CardContent className="p-4 sm:p-6">
-            <div className="flex flex-wrap gap-4">
+          <CardContent className="p-3.5 sm:p-6">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3">
               <div className="relative flex-1 min-w-[200px]">
-                <div className="h-10 w-full bg-muted rounded-lg" />
+                <Skeleton className="h-10 w-full rounded-lg" />
               </div>
-              <div className="w-48">
-                <div className="h-10 w-full bg-muted rounded-lg" />
+              <div className="w-full sm:w-48">
+                <Skeleton className="h-10 w-full rounded-lg" />
               </div>
-              <div className="w-48">
-                <div className="h-10 w-full bg-muted rounded-lg" />
+              <div className="w-full sm:w-48">
+                <Skeleton className="h-10 w-full rounded-lg" />
               </div>
             </div>
           </CardContent>
         </Card>
+
+        {/* Users List Card */}
         <Card className="card-elevated">
           <CardContent className="p-0">
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="flex items-center gap-3 p-4 border-b border-border">
-                  <div className="w-10 h-10 rounded-full bg-muted flex-shrink-0" />
-                  <div className="flex-1 space-y-2">
-                    <div className="h-4 bg-muted rounded w-1/4" />
-                    <div className="h-3 bg-muted rounded w-1/3" />
+            <div className="divide-y divide-border">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div
+                  key={i}
+                  className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <Skeleton className="w-10 h-10 rounded-full flex-shrink-0" />
+                    <div className="space-y-1.5 flex-1 min-w-0">
+                      <Skeleton className="h-4 w-32 rounded" />
+                      <Skeleton className="h-3 w-44 rounded" />
+                    </div>
                   </div>
-                  <div className="w-24 h-6 bg-muted rounded" />
-                  <div className="w-24 h-6 bg-muted rounded" />
-                  <div className="w-24 h-6 bg-muted rounded" />
-                  <div className="w-24 h-8 bg-muted rounded" />
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0 border-t border-border/50 sm:border-t-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Skeleton className="h-5 w-20 rounded-full" />
+                      <Skeleton className="h-5 w-24 rounded-full" />
+                      <Skeleton className="h-5 w-16 rounded-full" />
+                    </div>
+                    <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                      <Skeleton className="w-8 h-8 rounded-lg" />
+                      <Skeleton className="w-8 h-8 rounded-lg" />
+                      <Skeleton className="w-8 h-8 rounded-lg" />
+                    </div>
+                  </div>
                 </div>
               ))}
+            </div>
+
+            {/* Pagination skeleton */}
+            <div className="p-4 border-t border-border flex items-center justify-between">
+              <Skeleton className="h-4 w-44 rounded" />
+              <div className="flex items-center gap-2">
+                <Skeleton className="h-8 w-20 rounded-lg" />
+                <Skeleton className="h-8 w-20 rounded-lg" />
+              </div>
             </div>
           </CardContent>
         </Card>
@@ -392,7 +422,11 @@ export function UsersContent() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="role">Role</Label>
-                <Select {...form.register("role")} disabled={isSubmitting || watchRole === "manager"}>
+                <Select
+                  value={form.watch("role") || "team"}
+                  onValueChange={(val) => form.setValue("role", val as "super_admin" | "manager" | "team" | "client", { shouldValidate: true })}
+                  disabled={isSubmitting || watchRole === "manager"}
+                >
                   <SelectTrigger id="role">
                     <SelectValue placeholder="Select role" />
                   </SelectTrigger>
@@ -413,14 +447,18 @@ export function UsersContent() {
               </div>
               <div className="space-y-2">
                 <Label htmlFor="departmentId">Department</Label>
-                <Select {...form.register("departmentId")} disabled={isSubmitting || watchRole === "manager"}>
+                <Select
+                  value={form.watch("departmentId") || "none"}
+                  onValueChange={(val) => form.setValue("departmentId", val, { shouldValidate: true })}
+                  disabled={isSubmitting || watchRole === "manager"}
+                >
                   <SelectTrigger id="departmentId">
                     <SelectValue placeholder="Select department (optional)" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">No Department</SelectItem>
+                    <SelectItem value="none">No Department</SelectItem>
                     {departments.map((dept) => (
-<SelectItem key={dept._id.toString()} value={dept._id.toString()}>
+                      <SelectItem key={dept._id.toString()} value={dept._id.toString()}>
                         {dept.name}
                       </SelectItem>
                     ))}
@@ -433,7 +471,11 @@ export function UsersContent() {
               {watchRole === "team" && (
                 <div className="space-y-2">
                   <Label htmlFor="ticketAccess">Ticket access</Label>
-                  <Select {...form.register("ticketAccess")} disabled={isSubmitting}>
+                  <Select
+                    value={form.watch("ticketAccess") || "department"}
+                    onValueChange={(val) => form.setValue("ticketAccess", val as "department" | "assigned", { shouldValidate: true })}
+                    disabled={isSubmitting}
+                  >
                     <SelectTrigger id="ticketAccess">
                       <SelectValue />
                     </SelectTrigger>
@@ -450,7 +492,11 @@ export function UsersContent() {
               {isSuperAdmin && (
                 <div className="space-y-2">
                   <Label htmlFor="reportingManagerId">Reporting manager (optional)</Label>
-                  <Select {...form.register("reportingManagerId")} disabled={isSubmitting}>
+                  <Select
+                    value={form.watch("reportingManagerId") || "none"}
+                    onValueChange={(val) => form.setValue("reportingManagerId", val, { shouldValidate: true })}
+                    disabled={isSubmitting}
+                  >
                     <SelectTrigger id="reportingManagerId">
                       <SelectValue placeholder="Select reporting manager (optional)" />
                     </SelectTrigger>
@@ -492,8 +538,8 @@ export function UsersContent() {
 
       {/* Filters */}
       <Card className="card-elevated">
-        <CardContent className="p-4 sm:p-6">
-          <div className="flex flex-wrap gap-4">
+        <CardContent className="p-3.5 sm:p-6">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3">
             <div className="relative flex-1 min-w-[200px]">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
               <Input
@@ -503,9 +549,9 @@ export function UsersContent() {
                 className="pl-10"
               />
             </div>
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select value={filters.role} onValueChange={(v) => handleFilterChange("role", v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Roles" />
                 </SelectTrigger>
                 <SelectContent>
@@ -517,9 +563,9 @@ export function UsersContent() {
                 </SelectContent>
               </Select>
             </div>
-            <div className="w-48">
+            <div className="w-full sm:w-48">
               <Select value={filters.departmentId} onValueChange={(v) => handleFilterChange("departmentId", v)}>
-                <SelectTrigger>
+                <SelectTrigger className="w-full">
                   <SelectValue placeholder="All Departments" />
                 </SelectTrigger>
                 <SelectContent>
@@ -548,59 +594,62 @@ export function UsersContent() {
           ) : (
             <div className="divide-y divide-border">
               {users.map((user) => (
-                <div key={user._id} className="p-4 flex items-center gap-4 hover:bg-muted/50 transition-colors">
-                  <UserAvatar name={user.name} email={user.email} role={user.role as any} size="md" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">{user.name}</p>
-                    <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                <div key={user._id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/50 transition-colors">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <UserAvatar name={user.name} email={user.email} role={user.role as any} size="md" avatar={user.avatar} />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-foreground text-sm truncate">{user.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                    </div>
                   </div>
-                  <Badge variant="outline" className={cn(roleColors[user.role])}>
-                    {roleLabels[user.role] || user.role}
-                  </Badge>
-                  {user.departmentId && (
-                    <DepartmentBadge name={user.departmentId.name} color={user.departmentId.color} />
-                  )}
-                  <Badge variant={user.active ? "success" : "secondary"} className="gap-1">
-                    {user.active ? (
-                      <>
-                        <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                        Active
-                      </>
-                    ) : (
-                      <>
-                        <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                        Inactive
-                      </>
-                    )}
-                  </Badge>
-                  <div className="flex items-center gap-1">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => openEditDialog(user)}
-                      className="h-8 w-8"
-                      aria-label={`Edit ${user.name}`}
-                    >
-                      <Edit className="w-4 h-4" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleToggleActive(user)}
-                      className="h-8 w-8"
-                      aria-label={user.active ? `Deactivate ${user.name}` : `Activate ${user.name}`}
-                    >
-                      {user.active ? <Power className="w-4 h-4" /> : <UserPlus className="w-4 h-4" />}
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleDelete(user._id)}
-                      className="h-8 w-8 text-destructive hover:text-destructive"
-                      aria-label={`Delete ${user.name}`}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
+                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0 border-t border-border/50 sm:border-t-0">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant="outline" className={cn("text-[10px] sm:text-xs px-2 py-0.5", roleColors[user.role])}>
+                        {roleLabels[user.role] || user.role}
+                      </Badge>
+                      {user.departmentId && (
+                        <DepartmentBadge name={user.departmentId.name} color={user.departmentId.color} />
+                      )}
+                      <Badge variant={user.active ? "success" : "secondary"} className="gap-1 text-[10px] sm:text-xs">
+                        {user.active ? (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                            Active
+                          </>
+                        ) : (
+                          <>
+                            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                            Inactive
+                          </>
+                        )}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => openEditDialog(user)}
+                        aria-label={`Edit ${user.name}`}
+                      >
+                        <Edit className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="icon-sm"
+                        onClick={() => handleToggleActive(user)}
+                        aria-label={user.active ? `Deactivate ${user.name}` : `Activate ${user.name}`}
+                      >
+                        {user.active ? <Power className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                      </Button>
+                      <Button
+                        variant="destructive-outline"
+                        size="icon-sm"
+                        onClick={() => handleDelete(user._id)}
+                        aria-label={`Delete ${user.name}`}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -638,8 +687,12 @@ export function UsersContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="outline">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="destructive" onClick={confirmDelete}>Delete user</Button>
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

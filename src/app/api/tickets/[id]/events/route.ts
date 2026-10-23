@@ -2,11 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db/mongo";
 import { Ticket, Comment, TicketReadState } from "@/lib/db/models";
 import { requireApiRole, canAccessTicket } from "@/lib/authz";
-import { subscribeTicket, type TicketEvent } from "@/lib/events";
+import { subscribeTicket, publishTicketEvent, type TicketEvent } from "@/lib/events";
 import { stripCommentAttachmentData } from "@/lib/attachments";
+import {
+  acquireStreamSlot,
+  enforceRateLimit,
+  DB_QUERY_MAX_TIME_MS,
+} from "@/lib/security";
 import mongoose from "mongoose";
 
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 /**
  * Server-Sent Events stream for one ticket's conversation.
@@ -28,13 +34,37 @@ export async function GET(
   const authResult = await requireApiRole("client", "team", "manager", "super_admin");
   if (authResult instanceof NextResponse) return authResult;
   const user = authResult;
+
+  // 1. Connection attempt rate limit: max 20 stream opens / min
+  const rateLimit = await enforceRateLimit(
+    `events:connect:${user.id}`,
+    20,
+    60_000,
+    "Too many stream connection attempts. Please wait a moment."
+  );
+  if (rateLimit) return rateLimit;
+
+  // 2. Concurrency throttle: max 3 concurrent active streams per user
+  const streamSlot = acquireStreamSlot(user.id, 3);
+  if (!streamSlot.allowed) {
+    return new Response(
+      JSON.stringify({ error: "Too many concurrent live event streams. Max 3 allowed." }),
+      {
+        status: 429,
+        headers: { "Content-Type": "application/json", "Retry-After": "10" },
+      }
+    );
+  }
+
   const { id } = await params;
   if (!mongoose.Types.ObjectId.isValid(id)) {
+    streamSlot.release();
     return new Response("Invalid ticket ID", { status: 400 });
   }
   await connectDB();
   const ticket = await Ticket.findById(id).lean();
   if (!ticket) {
+    streamSlot.release();
     return new Response("Ticket not found", { status: 404 });
   }
   const canAccess = canAccessTicket(
@@ -48,12 +78,11 @@ export async function GET(
     user.ticketAccess
   );
   if (!canAccess) {
+    streamSlot.release();
     return new Response("Forbidden", { status: 403 });
   }
 
   const { searchParams } = new URL(request.url);
-  // The client owns its cursor; the server never sends what the client
-  // already has. Seeded from ?after= so reconnects don't replay history.
   let cursor: string | null = searchParams.get("after");
 
   const encoder = new TextEncoder();
@@ -82,6 +111,7 @@ export async function GET(
           const fresh = await Comment.find(filter)
             .sort({ createdAt: 1 })
             .limit(100)
+            .maxTimeMS(DB_QUERY_MAX_TIME_MS)
             .populate("authorId", "name email role")
             .lean();
           if (fresh.length) {
@@ -90,14 +120,22 @@ export async function GET(
               comments: (fresh as unknown as Record<string, unknown>[]).map(stripCommentAttachmentData),
               serverTime: new Date().toISOString(),
             });
+            const now = new Date();
+            void Comment.updateMany(
+              { ticketId: id, authorId: { $ne: new mongoose.Types.ObjectId(user.id) }, deliveredAt: null },
+              { $set: { deliveredAt: now } }
+            ).exec().then((res) => {
+              if (res.modifiedCount > 0) publishTicketEvent(id, "read");
+            });
           } else if (isReadEvent) {
             // Still refresh receipts (othersReadAt may have moved).
             send("read", { at: new Date().toISOString() });
           }
           // Reading the stream advances the read marker (✓✓ for senders).
+          const now = new Date();
           void TicketReadState.updateOne(
             { userId: user.id, ticketId: id },
-            { $set: { lastReadAt: new Date() } },
+            { $set: { lastReadAt: now } },
             { upsert: true }
           ).exec();
         } catch {
@@ -127,6 +165,7 @@ export async function GET(
         closed = true;
         clearInterval(heartbeat);
         unsubscribe();
+        streamSlot.release();
         try {
           controller.close();
         } catch {

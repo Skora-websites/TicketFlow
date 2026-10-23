@@ -31,7 +31,7 @@ const idStr = (v: unknown): string | undefined | null => {
  * between the two managers; super admins oversee but never decide.
  */
 export function isReceivingManager(user: TransferActor, transfer?: TransferRef | null): boolean {
-  if (!transfer) return false;
+  if (!transfer || transfer.status !== "pending") return false;
   if (user.role !== "manager") return false;
   const targetDept = idStr(transfer.toDepartmentId);
   if (!!user.departmentId && !!targetDept && user.departmentId === targetDept) return true;

@@ -225,7 +225,7 @@ export function HeaderSearch() {
   return (
     <div ref={wrapRef} className="relative hidden md:block">
       <div role="search" aria-label="Search tickets and navigate" className="relative">
-        <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" aria-hidden />
         <input
           ref={inputRef}
           type="text"
@@ -243,9 +243,9 @@ export function HeaderSearch() {
             setActive(0);
           }}
           onKeyDown={onKeyDown}
-          className="h-9 w-60 rounded-full border border-input/70 bg-muted/40 pl-9 pr-12 text-sm text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary/30 focus:bg-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/20 lg:w-72"
+          className="h-8.5 w-56 rounded-md border border-border bg-secondary/40 pl-8 pr-10 text-[13px] text-foreground placeholder:text-muted-foreground transition-colors focus:border-primary focus:bg-card focus:outline-none focus:ring-1 focus:ring-primary lg:w-64"
         />
-        <kbd className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 rounded-md border border-border bg-background px-1.5 py-0.5 font-mono text-[10px] font-semibold text-muted-foreground shadow-sm">
+        <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-card px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
           ⌘K
         </kbd>
       </div>
@@ -255,7 +255,7 @@ export function HeaderSearch() {
           id="header-search-results"
           role="listbox"
           aria-label="Search results"
-          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[26rem] w-80 overflow-y-auto rounded-xl border border-border bg-popover text-popover-foreground shadow-xl"
+          className="absolute right-0 top-[calc(100%+0.5rem)] z-50 max-h-[24rem] w-80 overflow-y-auto rounded-lg border border-border bg-popover text-popover-foreground shadow-lg"
         >
           {showEmpty && <p className="px-4 py-6 text-center text-sm text-muted-foreground">No results found.</p>}
           {rows.map((row, i) => {

@@ -25,6 +25,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   AlertDialog,
@@ -164,23 +165,50 @@ export function RoutingDashboardContent() {
   if (loading) {
     return (
       <div className="space-y-6" aria-label="Loading routing" aria-busy="true">
-        <div>
-          <div className="h-9 w-64 animate-pulse rounded bg-muted" />
-          <div className="mt-2 h-4 w-96 animate-pulse rounded bg-muted" />
+        {/* Header */}
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <Skeleton className="h-4 w-32 rounded-md mb-2" />
+            <Skeleton className="h-8 w-64 sm:w-80 rounded-lg mb-2" />
+            <Skeleton className="h-4 w-full sm:w-96 rounded-md" />
+          </div>
+          <Skeleton className="w-full sm:w-28 h-9.5 sm:h-9 rounded-lg" />
         </div>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+        {/* KPI strip */}
+        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
             <Card key={i}>
-              <CardContent className="p-6">
-                <div className="h-4 w-2/3 animate-pulse rounded bg-muted" />
-                <div className="mt-2 h-8 w-1/3 animate-pulse rounded bg-muted" />
+              <CardContent className="p-6 space-y-2">
+                <Skeleton className="h-4 w-24 rounded" />
+                <Skeleton className="h-8 w-16 rounded" />
+                <Skeleton className="h-3 w-32 rounded" />
               </CardContent>
             </Card>
           ))}
         </div>
-        <Card>
-          <CardContent className="h-64 animate-pulse bg-muted" />
-        </Card>
+
+        {/* Tabs & Content */}
+        <div className="space-y-4">
+          <div className="flex gap-2">
+            <Skeleton className="h-9 w-20 rounded-md" />
+            <Skeleton className="h-9 w-28 rounded-md" />
+            <Skeleton className="h-9 w-32 rounded-md" />
+          </div>
+          <Card>
+            <CardContent className="p-6 space-y-4">
+              <Skeleton className="h-28 w-full rounded-xl" />
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2">
+                <Skeleton className="h-4 w-40 rounded" />
+                <div className="flex items-center gap-1.5">
+                  <Skeleton className="h-8 w-20 rounded-md" />
+                  <Skeleton className="h-8 w-16 rounded-md" />
+                  <Skeleton className="h-8 w-16 rounded-md" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
       </div>
     );
   }
@@ -304,7 +332,11 @@ export function RoutingDashboardContent() {
                       ` · last ${new Date(rule.stats.lastMatchedAt).toLocaleString()}`}
                   </p>
                   <div className="flex items-center gap-1.5">
-                    <Button variant="ghost" size="sm" onClick={() => toggleRuleStatus(rule)}>
+                    <Button
+                      variant={rule.status === "active" ? "warning-outline" : "success-outline"}
+                      size="sm"
+                      onClick={() => toggleRuleStatus(rule)}
+                    >
                       {rule.status === "active" ? (
                         <>
                           <Pause className="h-3.5 w-3.5" aria-hidden /> Pause
@@ -315,14 +347,13 @@ export function RoutingDashboardContent() {
                         </>
                       )}
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={() => startEdit(rule)}>
+                    <Button variant="outline" size="sm" onClick={() => startEdit(rule)}>
                       <Pencil className="h-3.5 w-3.5" aria-hidden /> Edit
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant="destructive-outline"
                       size="sm"
                       onClick={() => deleteRule(rule)}
-                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                     >
                       <Trash2 className="h-3.5 w-3.5" aria-hidden /> Delete
                     </Button>
@@ -397,8 +428,12 @@ export function RoutingDashboardContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="outline">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="destructive" onClick={confirmDelete}>Delete rule</Button>
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -66,8 +66,8 @@ export async function GET(
 
     // Populate AFTER the access check for the response body.
     const populated = await Ticket.findById(id)
-      .populate("requesterId", "name email")
-      .populate("assigneeId", "name email")
+      .populate("requesterId", "name email avatar")
+      .populate("assigneeId", "name email avatar")
       .populate("departmentId", "name color")
       .populate("assignedBy", "name email")
       // Transfer sender must be populated so the client can evaluate the
@@ -191,13 +191,14 @@ export async function PATCH(
       );
     }
 
-    // Project-wide status rule: only managers and the assigned agent may move
-    // a ticket's status. Super admins and the filing agent are read-only here.
+    // Project-wide status rule: managers and the assigned agent may move
+    // a ticket's status; clients may only reopen their own ticket (resolved/closed -> open).
     if (parsed.data.status !== undefined) {
       const isAssignee = ticket.assigneeId?.toString() === user.id;
-      if (!canTransitionStatus(user.role, ticket.status, parsed.data.status, false, isAssignee)) {
+      const isOwner = ticket.requesterId.toString() === user.id;
+      if (!canTransitionStatus(user.role, ticket.status, parsed.data.status, isOwner, isAssignee)) {
         return NextResponse.json(
-          { error: "Only the assigned agent or a manager can change the status" },
+          { error: `Cannot transition status from ${ticket.status} to ${parsed.data.status}` },
           { status: 403 }
         );
       }
@@ -238,17 +239,6 @@ export async function PATCH(
     const updateData: Record<string, unknown> = { ...rest };
 
     if (status) {
-      // Gate already enforced above with the same rule; kept for the
-      // transition-matrix check (valid moves from the current state).
-      const isAssignee = ticket.assigneeId?.toString() === user.id;
-      const canTransition = canTransitionStatus(user.role, ticket.status, status, false, isAssignee);
-      if (!canTransition) {
-        return NextResponse.json(
-          { error: `Cannot transition from ${ticket.status} to ${status}` },
-          { status: 400 }
-        );
-      }
-
       updateData.status = status;
       if (status === "resolved" || status === "closed") {
         updateData.closedAt = new Date();
@@ -352,8 +342,8 @@ export async function PATCH(
     updateData.updatedAt = new Date();
 
     const updatedTicket = await Ticket.findByIdAndUpdate(id, updateData, { returnDocument: "after" })
-      .populate("requesterId", "name email")
-      .populate("assigneeId", "name email")
+      .populate("requesterId", "name email avatar")
+      .populate("assigneeId", "name email avatar")
       .populate("departmentId", "name color")
       .populate("assignedBy", "name email")
       .populate("transfer.fromId", "name email role")

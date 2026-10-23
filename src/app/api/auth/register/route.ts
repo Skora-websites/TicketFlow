@@ -4,6 +4,7 @@ import { connectDB } from "@/lib/db/mongo";
 import { User } from "@/lib/db/models";
 import { hashPassword } from "@/lib/password";
 import { sendVerificationEmail, isSmtpConfigured } from "@/lib/mailer";
+import { enforceRateLimit, getClientIp } from "@/lib/security";
 import { z } from "zod";
 
 const registerSchema = z.object({
@@ -14,6 +15,11 @@ const registerSchema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Route-level rate limit to prevent account spam and database clutter
+    const ip = getClientIp(request);
+    const rateCheck = await enforceRateLimit(`register:ip:${ip}`, 5, 60 * 60_000, "Too many registration attempts from this network. Please try again later.");
+    if (rateCheck) return rateCheck;
+
     const body = await request.json();
     const parsed = registerSchema.safeParse(body);
 
@@ -46,32 +52,34 @@ export async function POST(request: NextRequest) {
     const verifyToken = randomBytes(32).toString("hex");
     const hashedToken = createHash("sha256").update(verifyToken).digest("hex");
 
-    // Account starts inactive: authorize() rejects it and every protected
-    // route treats it as unauthenticated until the address is verified.
+    // In dev / when SMTP is not configured, activate immediately so users aren't locked out.
+    // In production with SMTP configured, require email verification.
+    const isAutoActive = !isSmtpConfigured() || process.env.NODE_ENV !== "production";
+
     const user = await User.create({
       name,
       email: normalizedEmail,
       passwordHash,
       role: "client",
-      active: false,
-      emailVerifyToken: hashedToken,
-      emailVerifyExpires: new Date(Date.now() + 30 * 60 * 1000),
+      active: isAutoActive,
+      emailVerifyToken: isAutoActive ? undefined : hashedToken,
+      emailVerifyExpires: isAutoActive ? undefined : new Date(Date.now() + 30 * 60 * 1000),
     });
     void user;
 
-    await sendVerificationEmail(normalizedEmail, verifyToken);
+    if (!isAutoActive) {
+      await sendVerificationEmail(normalizedEmail, verifyToken);
+    }
 
     const payload: Record<string, unknown> = {
-      message:
-        "Account created. Check your email for a verification link — it expires in 30 minutes.",
+      message: isAutoActive
+        ? "Account created successfully. You can now sign in."
+        : "Account created. Check your email for a verification link — it expires in 30 minutes.",
+      autoActive: isAutoActive,
     };
 
-    // Dev-only fallback (mirrors the password-reset flow): with no SMTP the
-    // link could never be delivered, so surface it directly in non-production.
     if (!isSmtpConfigured() && process.env.NODE_ENV !== "production") {
       payload.devVerifyUrl = `/api/auth/verify/${verifyToken}`;
-      payload.message =
-        "SMTP is not configured — in development the verification link is returned here instead of being emailed.";
     }
 
     return NextResponse.json(payload, { status: 201 });

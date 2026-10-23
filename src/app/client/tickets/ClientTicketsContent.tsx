@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { TicketList, ticketHref } from "@/components/tickets";
+import { TicketList, ticketHref, TicketCardSkeleton } from "@/components/tickets";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, TicketCheck } from "lucide-react";
 import type { IUser, IDepartment } from "@/lib/db/models";
 
@@ -46,22 +47,20 @@ export function ClientTicketsContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        <div className="flex items-center justify-between">
+      <div className="space-y-6" aria-label="Loading tickets" aria-busy="true">
+        {/* Header */}
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <div className="h-8 bg-muted rounded w-1/4 mb-2" />
-            <div className="h-4 bg-muted rounded w-1/3" />
+            <Skeleton className="h-8 w-36 rounded-md mb-2" />
+            <Skeleton className="h-4 w-28 rounded-md" />
           </div>
+          <Skeleton className="w-full sm:w-36 h-9.5 sm:h-8.5 rounded-lg" />
         </div>
+
+        {/* Tickets List */}
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="flex items-center gap-3 p-4 border-b border-border">
-              <div className="w-8 h-8 rounded bg-muted flex-shrink-0" />
-              <div className="flex-1 space-y-2">
-                <div className="h-4 bg-muted rounded w-1/4" />
-                <div className="h-3 bg-muted rounded w-1/2" />
-              </div>
-            </div>
+            <TicketCardSkeleton key={i} variant="default" />
           ))}
         </div>
       </div>
@@ -89,8 +88,8 @@ export function ClientTicketsContent() {
             {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        <Link href="/client/tickets/new">
-          <Button>
+        <Link href="/client/tickets/new" className="w-full sm:w-auto">
+          <Button className="w-full sm:w-auto h-9.5 sm:h-8.5 font-bold">
             <Plus className="w-4 h-4 mr-2" />
             Create Ticket
           </Button>

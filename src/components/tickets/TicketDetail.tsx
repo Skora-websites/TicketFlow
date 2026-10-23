@@ -103,6 +103,9 @@ export function TicketDetail({
   const [isTransferDialogOpen, setIsTransferDialogOpen] = useState(false);
   const [agents, setAgents] = useState<{ userId: string; name: string }[]>([]);
   const [managers, setManagers] = useState<{ userId: string; name: string }[]>([]);
+  const [isDenying, setIsDenying] = useState(false);
+  const [denialReason, setDenialReason] = useState("");
+  const [isSubmittingDenial, setIsSubmittingDenial] = useState(false);
   const { toast } = useToast();
 
   const assigneeIdStr = ticket.assigneeId?._id?.toString();
@@ -126,7 +129,7 @@ export function TicketDetail({
   const canSendTransfer =
     TRANSFERS_ENABLED &&
     ["team", "manager", "super_admin"].includes(currentUser.role) &&
-    !transfer;
+    transfer?.status !== "pending";
 
   // Status rule (project-wide): only managers and the assigned agent may move
   // status; super admins and the filing agent read it.
@@ -209,6 +212,10 @@ export function TicketDetail({
 
   const handleStatusChange = async (newStatus: string) => {
     if (!canTransition(newStatus)) return;
+    if (newStatus === "closed" && (currentUser.role === "manager" || currentUser.role === "super_admin")) {
+      setIsDenying(true);
+      return;
+    }
     try {
       await onUpdateTicket({ status: newStatus });
       toast({ title: "Status updated", description: `Ticket marked as ${newStatus.replace("_", " ")}` });
@@ -216,6 +223,27 @@ export function TicketDetail({
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     }
   };
+
+  const confirmDenial = async () => {
+    setIsSubmittingDenial(true);
+    try {
+      await onUpdateTicket({ status: "closed" });
+      if (denialReason.trim()) {
+        await onAddComment(`**Ticket Request Denied**\n\nReason: ${denialReason.trim()}`);
+      }
+      toast({
+        title: "Ticket denied",
+        description: "The ticket request has been denied and closed.",
+      });
+      setIsDenying(false);
+      setDenialReason("");
+    } catch {
+      toast({ title: "Error", description: "Failed to deny ticket", variant: "destructive" });
+    } finally {
+      setIsSubmittingDenial(false);
+    }
+  };
+
 
   const handlePriorityChange = async (newPriority: string) => {
     try {
@@ -295,7 +323,7 @@ export function TicketDetail({
           </div>
         )}
         <div className="mt-2 flex items-start justify-between gap-3">
-          <h1 className="font-display text-2xl font-semibold tracking-tight text-foreground sm:text-3xl">
+          <h1 className="font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             {ticket.title}
           </h1>
           <div className="flex shrink-0 items-center gap-2">
@@ -314,34 +342,38 @@ export function TicketDetail({
               <AlertDialog>
                 <AlertDialogTrigger asChild>
                   <Button
-                    variant="ghost"
+                    variant="destructive-outline"
                     size="sm"
                     disabled={isDeleting}
-                    className="shrink-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                    className="shrink-0"
                   >
                     {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Trash2 className="h-4 w-4" aria-hidden />}
                     Delete
                   </Button>
                 </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle>Delete {ticket.ticketNumber}?</AlertDialogTitle>
-                  <AlertDialogDescription>
-                    This permanently deletes the ticket and its comments. This cannot be undone.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction
-                    onClick={handleDeleteTicket}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Delete ticket
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
-          )}
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Delete {ticket.ticketNumber}?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This permanently deletes the ticket and its comments. This cannot be undone.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel asChild>
+                      <Button variant="outline">Cancel</Button>
+                    </AlertDialogCancel>
+                    <AlertDialogAction asChild>
+                      <Button
+                        variant="destructive"
+                        onClick={handleDeleteTicket}
+                      >
+                        Delete ticket
+                      </Button>
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
         {/* Meta row. Staff: deliberately minimal — only who assigned it and
@@ -378,6 +410,16 @@ export function TicketDetail({
             </>
           )}
         </div>
+        {!isClient && (
+          <div className="mt-2.5 flex items-center gap-2 lg:hidden">
+            <a
+              href="#ticket-manage-section"
+              className="inline-flex h-7.5 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-secondary active:scale-95 transition-all"
+            >
+              Manage & Details ({ticket.status.replace("_", " ")}) ↓
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Client reopen — lives here so it's never hidden by accident */}
@@ -394,7 +436,7 @@ export function TicketDetail({
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="border-warning/40 text-warning hover:bg-warning hover:text-warning-foreground" disabled={isReopening}>
+                <Button variant="warning-outline" disabled={isReopening}>
                   {isReopening ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="mr-2 h-4 w-4" aria-hidden />}
                   Reopen ticket
                 </Button>
@@ -407,8 +449,12 @@ export function TicketDetail({
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
-                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                  <AlertDialogAction onClick={handleReopen}>Reopen</AlertDialogAction>
+                  <AlertDialogCancel asChild>
+                    <Button variant="outline">Cancel</Button>
+                  </AlertDialogCancel>
+                  <AlertDialogAction asChild>
+                    <Button variant="warning" onClick={handleReopen}>Reopen</Button>
+                  </AlertDialogAction>
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
@@ -513,7 +559,7 @@ export function TicketDetail({
 
         {/* Manage sidebar — internal users only */}
         {!isClient && (
-          <aside className="space-y-4 lg:sticky lg:top-20 lg:self-start" aria-label="Ticket actions">
+          <aside id="ticket-manage-section" className="space-y-4 lg:sticky lg:top-20 lg:self-start scroll-mt-16" aria-label="Ticket actions">
             {/* Small at-a-glance dashboard: project, sender, age, transfer state */}
             <TicketMiniDashboard ticket={ticket} transfer={transfer} />
 
@@ -555,18 +601,82 @@ export function TicketDetail({
                       <StatusBadge status={ticket.status} />
                     </div>
                   ) : (
-                    <Select value={editStatus} onValueChange={handleStatusChange}>
-                      <SelectTrigger id="ticket-status" className="w-full">
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {statusOptions.map((s) => (
-                          <SelectItem key={s.value} value={s.value}>
-                            {s.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <>
+                      <Select value={isDenying ? "closed" : editStatus} onValueChange={handleStatusChange}>
+                        <SelectTrigger id="ticket-status" className="w-full">
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {statusOptions.map((s) => (
+                            <SelectItem key={s.value} value={s.value}>
+                              {s.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+
+                      {(currentUser.role === "manager" || currentUser.role === "super_admin") && ticket.status !== "closed" && !isDenying && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => setIsDenying(true)}
+                          className="mt-2 w-full text-xs text-destructive hover:bg-destructive/10 hover:text-destructive border-destructive/20"
+                        >
+                          Deny Ticket Request
+                        </Button>
+                      )}
+
+                      {isDenying && (
+                        <div className="mt-3 rounded-lg border border-destructive/30 bg-destructive/5 p-3">
+                          <Label htmlFor="denial-reason" className="text-xs font-semibold text-destructive">
+                            Reason for denial
+                          </Label>
+                          <p className="mt-0.5 text-[11px] text-muted-foreground">
+                            Provide an explanation for denying this ticket request.
+                          </p>
+                          <textarea
+                            id="denial-reason"
+                            rows={3}
+                            value={denialReason}
+                            onChange={(e) => setDenialReason(e.target.value)}
+                            placeholder="Write the reason for denial (sent to the ticket thread)..."
+                            aria-label="Reason for denial"
+                            className="mt-2 w-full resize-none rounded-md border border-border bg-background p-2 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-destructive"
+                          />
+                          <div className="mt-2 flex items-center justify-end gap-2">
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              disabled={isSubmittingDenial}
+                              onClick={() => {
+                                setIsDenying(false);
+                                setDenialReason("");
+                              }}
+                            >
+                              Cancel
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="destructive"
+                              disabled={isSubmittingDenial}
+                              onClick={confirmDenial}
+                            >
+                              {isSubmittingDenial ? (
+                                <>
+                                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                                  Denying...
+                                </>
+                              ) : (
+                                "Confirm Denial"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   )}
                 </div>
 

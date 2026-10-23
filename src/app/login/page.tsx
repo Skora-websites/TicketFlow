@@ -65,7 +65,14 @@ function LoginForm() {
       if (result?.error) {
         setFormError("Invalid email or password");
       } else {
-        router.push(callbackUrl);
+        const sessionRes = await fetch("/api/auth/session");
+        const sessionData = await sessionRes.json();
+        const role = sessionData?.user?.role;
+        const target =
+          callbackUrl === "/dashboard/overview" && role === "client"
+            ? "/client/tickets"
+            : callbackUrl;
+        router.push(target);
         router.refresh();
       }
     } catch {
@@ -75,8 +82,40 @@ function LoginForm() {
     }
   };
 
+  const loginAsDemo = async (demoEmail: string) => {
+    setEmail(demoEmail);
+    setPassword("wBDWlqZk9uLIA1!");
+    setIsLoading(true);
+    setFormError("");
+    try {
+      const result = await signIn("credentials", {
+        email: demoEmail,
+        password: "wBDWlqZk9uLIA1!",
+        redirect: false,
+        callbackUrl,
+      });
+      if (result?.error) {
+        setFormError("Failed to sign in as demo user");
+      } else {
+        const sessionRes = await fetch("/api/auth/session");
+        const sessionData = await sessionRes.json();
+        const role = sessionData?.user?.role;
+        const target =
+          callbackUrl === "/dashboard/overview" && role === "client"
+            ? "/client/tickets"
+            : callbackUrl;
+        router.push(target);
+        router.refresh();
+      }
+    } catch {
+      setFormError("Failed to sign in as demo user");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen grid lg:grid-cols-2 bg-background">
+    <div className="dark min-h-screen grid lg:grid-cols-2 bg-background text-foreground" data-color-theme="purple">
       <AuthBrandPanel />
 
       {/* Form panel */}
@@ -89,10 +128,59 @@ function LoginForm() {
           <Card className="border-border shadow-sm">
             <CardHeader className="text-center">
               <CardTitle className="font-display text-2xl font-semibold tracking-tight">Welcome back</CardTitle>
-              <CardDescription>Sign in to your account to continue</CardDescription>
+              <CardDescription>Sign in to your account or pick a demo role</CardDescription>
             </CardHeader>
 
           <CardContent className="space-y-4">
+            {/* Quick Demo Logins */}
+            <div className="rounded-lg border border-border/70 bg-muted/40 p-3 space-y-2">
+              <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                Quick Demo Logins (1-Click)
+              </p>
+              <div className="grid grid-cols-2 gap-1.5">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs justify-start px-2 font-medium"
+                  onClick={() => loginAsDemo("admin@ticketing.com")}
+                  disabled={isLoading}
+                >
+                  ⚡ Admin
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs justify-start px-2 font-medium"
+                  onClick={() => loginAsDemo("dev.manager@ticketing.com")}
+                  disabled={isLoading}
+                >
+                  👔 Dev Manager
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs justify-start px-2 font-medium"
+                  onClick={() => loginAsDemo("dev1@ticketing.com")}
+                  disabled={isLoading}
+                >
+                  🛠️ Dev Agent
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="h-8 text-xs justify-start px-2 font-medium"
+                  onClick={() => loginAsDemo("client1@example.com")}
+                  disabled={isLoading}
+                >
+                  👤 Client
+                </Button>
+              </div>
+            </div>
+
             {verified === "true" && !formError && !error && (
               <Alert className="border-success/20 bg-success-muted">
                 <CircleCheck className="h-4 w-4 text-success" aria-hidden />
@@ -113,7 +201,7 @@ function LoginForm() {
               <Alert className="border-success/20 bg-success-muted">
                 <CircleCheck className="h-4 w-4 text-success" aria-hidden />
                 <AlertDescription className="text-success">
-                  Account created — check your email for a verification link before signing in.
+                  Account created successfully — sign in below or select a demo user.
                 </AlertDescription>
               </Alert>
             )}

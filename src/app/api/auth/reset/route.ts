@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { connectDB } from "@/lib/db/mongo";
 import { User } from "@/lib/db/models";
 import { sendPasswordResetEmail, isSmtpConfigured } from "@/lib/mailer";
+import { enforceRateLimit, getClientIp } from "@/lib/security";
 import { z } from "zod";
 
 const schema = z.object({ email: z.string().email() });
@@ -15,6 +16,14 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Invalid email" }, { status: 400 });
     }
     const { email } = parsed.data;
+
+    // Route-level rate limiting to prevent reset email spamming & resource exhaustion
+    const ip = getClientIp(request);
+    const ipLimit = await enforceRateLimit(`reset:ip:${ip}`, 5, 15 * 60_000, "Too many password reset attempts. Please try again later.");
+    if (ipLimit) return ipLimit;
+
+    const emailLimit = await enforceRateLimit(`reset:email:${email.toLowerCase()}`, 3, 15 * 60_000, "Too many password reset attempts for this email. Please try again later.");
+    if (emailLimit) return emailLimit;
 
     await connectDB();
     let devToken: string | undefined;

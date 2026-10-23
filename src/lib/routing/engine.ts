@@ -37,6 +37,7 @@ export interface RoutingDecision {
 interface AgentScore {
   userId: string;
   name: string;
+  departmentId?: string;
   score: number;
   load: number;
   capacity: number;
@@ -256,6 +257,7 @@ async function pickBestAgent(
     return {
       userId: c._id.toString(),
       name: c.name,
+      departmentId: c.departmentId?.toString(),
       score,
       load,
       capacity,
@@ -316,16 +318,21 @@ export async function routeTicket(
     if (!resolvedDepartmentId && rule.fallbackDepartmentId) actionDeptIds.add(rule.fallbackDepartmentId.toString());
 
     const [actionUsers, actionDepts] = await Promise.all([
-      actionUserIds.size ? User.find({ _id: { $in: [...actionUserIds] } }).select("_id name").lean() : Promise.resolve([]),
+      actionUserIds.size ? User.find({ _id: { $in: [...actionUserIds] } }).select("_id name departmentId").lean() : Promise.resolve([]),
       actionDeptIds.size ? Department.find({ _id: { $in: [...actionDeptIds] } }).select("_id name").lean() : Promise.resolve([]),
     ]);
     const userNameMap = new Map(actionUsers.map((u) => [u._id.toString(), u.name]));
+    const userDeptMap = new Map(actionUsers.map((u) => [u._id.toString(), u.departmentId?.toString()]));
     const deptNameMap = new Map(actionDepts.map((d) => [d._id.toString(), d.name]));
 
     for (const action of rule.actions) {
       if (action.type === "assign_user" && action.targetId) {
         resolvedAssigneeId = action.targetId;
         assigneeName = userNameMap.get(action.targetId);
+        if (!resolvedDepartmentId) {
+          const uDept = userDeptMap.get(action.targetId);
+          if (uDept) resolvedDepartmentId = uDept;
+        }
       } else if (action.type === "assign_department" && action.targetId) {
         resolvedDepartmentId = action.targetId;
         departmentName = deptNameMap.get(action.targetId);
@@ -344,6 +351,10 @@ export async function routeTicket(
       const id = rule.fallbackAssigneeId.toString();
       resolvedAssigneeId = id;
       assigneeName = userNameMap.get(id);
+      if (!resolvedDepartmentId) {
+        const uDept = userDeptMap.get(id);
+        if (uDept) resolvedDepartmentId = uDept;
+      }
     }
     if (!resolvedDepartmentId && rule.fallbackDepartmentId) {
       const id = rule.fallbackDepartmentId.toString();
@@ -357,6 +368,17 @@ export async function routeTicket(
       if (best) {
         resolvedAssigneeId = best.userId;
         assigneeName = best.name;
+        if (!resolvedDepartmentId && best.departmentId) {
+          resolvedDepartmentId = best.departmentId;
+        }
+      }
+    }
+
+    if (resolvedDepartmentId && !departmentName) {
+      departmentName = deptNameMap.get(resolvedDepartmentId);
+      if (!departmentName) {
+        const d = await Department.findById(resolvedDepartmentId).select("name").lean();
+        if (d) departmentName = d.name;
       }
     }
 

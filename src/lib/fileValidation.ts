@@ -20,13 +20,20 @@ export const ALLOWED_ATTACHMENT_MIMES: ReadonlySet<string> = new Set([
   "application/x-zip-compressed",
 ]);
 
+const ZIP_MAGIC_BYTES = [
+  [0x50, 0x4b, 0x03, 0x04],
+  [0x50, 0x4b, 0x05, 0x06],
+  [0x50, 0x4b, 0x07, 0x08],
+];
+
 const MAGIC_SIGNATURES: { mime: string; bytes: number[][] }[] = [
   { mime: "image/png", bytes: [[0x89, 0x50, 0x4e, 0x47]] },
   { mime: "image/jpeg", bytes: [[0xff, 0xd8, 0xff]] },
   { mime: "image/gif", bytes: [[0x47, 0x49, 0x46, 0x38]] }, // GIF8
   { mime: "image/webp", bytes: [[0x52, 0x49, 0x46, 0x46]] }, // RIFF....
   { mime: "application/pdf", bytes: [[0x25, 0x50, 0x44, 0x46]] }, // %PDF
-  { mime: "application/zip", bytes: [[0x50, 0x4b, 0x03, 0x04], [0x50, 0x4b, 0x05, 0x06], [0x50, 0x4b, 0x07, 0x08]] },
+  { mime: "application/zip", bytes: ZIP_MAGIC_BYTES },
+  { mime: "application/x-zip-compressed", bytes: ZIP_MAGIC_BYTES },
 ];
 
 // Text-based types (text/plain, text/csv, office docs) have no reliable magic
@@ -43,7 +50,7 @@ export function attachmentMimeAllowed(declaredMime: string, data: Buffer): boole
   if (OFFICE_DOC_MIMES.has(declaredMime)) {
     // OOXML files are zip containers; legacy .doc (msword) is OLE2 (D0 CF 11 E0).
     if (declaredMime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
-      return MAGIC_SIGNATURES[5].bytes.some((sig) => data.subarray(0, sig.length).equals(Buffer.from(sig)));
+      return ZIP_MAGIC_BYTES.some((sig) => data.subarray(0, sig.length).equals(Buffer.from(sig)));
     }
     return data.subarray(0, 4).equals(Buffer.from([0xd0, 0xcf, 0x11, 0xe0]));
   }

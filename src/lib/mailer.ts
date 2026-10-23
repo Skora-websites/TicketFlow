@@ -1,6 +1,13 @@
 import nodemailer from "nodemailer";
+import { canSendEmail, recordEmailSent } from "@/lib/security/quotas";
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL
+    ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`
+    : process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000");
 const FROM = process.env.SMTP_FROM ?? "Helpdesk <no-reply@localhost>";
 
 function getTransport() {
@@ -20,6 +27,9 @@ export function isSmtpConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST);
 }
 
+// In-memory debounce map for ticket notifications: prevents rapid comments from spamming emails
+const recentNotifications = new Map<string, number>();
+
 /**
  * Client self-registration verification email. Mirrors the reset flow: token
  * is single-use, 30-minute expiry enforced by the caller; without SMTP the
@@ -36,6 +46,12 @@ export async function sendVerificationEmail(email: string, token: string): Promi
     return;
   }
 
+  const quota = await canSendEmail("critical");
+  if (!quota.allowed) {
+    console.warn(`[email-verify] Verification email to ${email} blocked by quota: ${quota.reason}`);
+    return;
+  }
+
   await transport.sendMail({
     from: FROM,
     to: email,
@@ -43,6 +59,8 @@ export async function sendVerificationEmail(email: string, token: string): Promi
     text: `Confirm your email address by visiting: ${url}\nThis link expires in 30 minutes.`,
     html: `<p>Confirm your email address by visiting:</p><p><a href="${url}">${url}</a></p><p>This link expires in 30 minutes.</p>`,
   });
+
+  await recordEmailSent();
 }
 
 /**
@@ -64,6 +82,12 @@ export async function sendCredentialEmail(
     return;
   }
 
+  const quota = await canSendEmail("critical");
+  if (!quota.allowed) {
+    console.warn(`[credentials] Account email to ${email} blocked by quota: ${quota.reason}`);
+    return;
+  }
+
   const roleLabel = role === "team" ? "Agent" : role === "manager" ? "Manager" : role;
   await transport.sendMail({
     from: FROM,
@@ -72,6 +96,8 @@ export async function sendCredentialEmail(
     text: `Hi ${name},\n\nAn account has been created for you on the helpdesk (${roleLabel}).\n\nUsername: ${email}\nPassword: ${password}\n\nPlease sign in and change your password from Settings after your first login.`,
     html: `<p>Hi ${name},</p><p>An account has been created for you on the helpdesk (${roleLabel}).</p><p><strong>Username:</strong> ${email}<br/><strong>Password:</strong> ${password}</p><p>Please sign in and change your password from Settings after your first login.</p>`,
   });
+
+  await recordEmailSent();
 }
 
 export async function sendPasswordResetEmail(email: string, token: string): Promise<void> {
@@ -88,6 +114,12 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
     return;
   }
 
+  const quota = await canSendEmail("critical");
+  if (!quota.allowed) {
+    console.warn(`[password-reset] Reset email to ${email} blocked by quota: ${quota.reason}`);
+    return;
+  }
+
   await transport.sendMail({
     from: FROM,
     to: email,
@@ -95,21 +127,47 @@ export async function sendPasswordResetEmail(email: string, token: string): Prom
     text: `Reset your password by visiting: ${url}\nThis link expires in 30 minutes.`,
     html: `<p>Reset your password by visiting:</p><p><a href="${url}">${url}</a></p><p>This link expires in 30 minutes.</p>`,
   });
+
+  await recordEmailSent();
 }
 
 /**
  * Best-effort email for in-app notification events (assignment, status change,
- * new comment). Silently skipped when SMTP is not configured; failures are
- * logged but never thrown so they can't break ticket operations.
+ * new comment). Silently skipped when SMTP is not configured or when notification
+ * quota/throttling applies; failures are logged but never thrown so they can't break ticket operations.
  */
 export async function sendTicketNotificationEmail(
   to: string,
-  payload: { ticketNumber: string; title: string; body: string; type: string }
+  payload: { ticketId?: string; ticketNumber: string; title: string; body: string; type: string; role?: string }
 ): Promise<void> {
   const transport = getTransport();
   if (!transport) return;
 
-  const url = `${APP_URL}/dashboard/tickets`;
+  // 1. Quota Check: notification emails yield to critical auth emails
+  const quota = await canSendEmail("notification");
+  if (!quota.allowed) {
+    console.warn(`[notify] notification email to ${to} skipped: ${quota.reason}`);
+    return;
+  }
+
+  // 2. Throttle check: max 1 notification per recipient per ticket per 30 seconds
+  const throttleKey = `${to}:${payload.ticketId || payload.ticketNumber}`;
+  const now = Date.now();
+  if (recentNotifications.size > 1000) {
+    for (const [key, timestamp] of recentNotifications.entries()) {
+      if (now - timestamp > 30_000) {
+        recentNotifications.delete(key);
+      }
+    }
+  }
+  const lastSent = recentNotifications.get(throttleKey);
+  if (lastSent && now - lastSent < 30_000) {
+    return;
+  }
+  recentNotifications.set(throttleKey, now);
+
+  const basePath = payload.role === "client" ? "/client/tickets" : "/dashboard/tickets";
+  const url = payload.ticketId ? `${APP_URL}${basePath}/${payload.ticketId}` : `${APP_URL}${basePath}`;
   try {
     await transport.sendMail({
       from: FROM,
@@ -118,6 +176,7 @@ export async function sendTicketNotificationEmail(
       text: `${payload.body}\n\nView the ticket at: ${url}`,
       html: `<p>${payload.body}</p><p><a href="${url}">View ticket ${payload.ticketNumber}</a></p>`,
     });
+    await recordEmailSent();
   } catch (err) {
     console.error(`[notify] failed to send email to ${to}:`, err);
   }

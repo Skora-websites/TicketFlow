@@ -1,14 +1,34 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db/mongo";
-import { Ticket, User } from "@/lib/db/models";
+import { Ticket, User, Comment } from "@/lib/db/models";
 import { getUser } from "@/lib/authz";
+import {
+  enforceRateLimit,
+  acquireHeavyActionSlot,
+  getSecurityAndCostStatus,
+  DB_QUERY_MAX_TIME_MS,
+} from "@/lib/security";
 import mongoose from "mongoose";
 
 export async function GET() {
+  let heavySlot: { allowed: boolean; release: () => void } | null = null;
   try {
     const user = await getUser();
     if (!user) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Rate Limit: 15 stats queries / min per user
+    const rateCheck = await enforceRateLimit(`stats:${user.id}`, 15, 60_000, "Too many analytics requests. Please wait a minute.");
+    if (rateCheck) return rateCheck;
+
+    // Concurrency Throttle: max 2 heavy action runs simultaneously per user
+    heavySlot = acquireHeavyActionSlot(user.id, 2);
+    if (!heavySlot.allowed) {
+      return NextResponse.json(
+        { error: "Too many concurrent analytics operations running. Please wait for current requests to finish." },
+        { status: 429, headers: { "Retry-After": "5" } }
+      );
     }
 
     await connectDB();
@@ -58,60 +78,82 @@ export async function GET() {
       weeklyTrend,
       weeklyResolved,
       teamWorkload,
+      contributions,
     ] = await Promise.all([
-      Ticket.countDocuments(baseFilter),
-      Ticket.countDocuments({ ...baseFilter, status: "open" }),
-      Ticket.countDocuments({ ...baseFilter, status: "in_progress" }),
-      Ticket.countDocuments({ ...baseFilter, status: "on_hold" }),
-      Ticket.countDocuments({ ...baseFilter, status: "resolved" }),
-      Ticket.countDocuments({ ...baseFilter, status: "closed" }),
-      // `null` matches missing OR explicitly-null assigneeId (PATCH unassign
-      // stores null), so unassigned-through-UI tickets are counted too.
-      Ticket.countDocuments({ ...baseFilter, assigneeId: null }),
+      Ticket.countDocuments(baseFilter).maxTimeMS(DB_QUERY_MAX_TIME_MS),
+      Ticket.countDocuments({ ...baseFilter, status: "open" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
+      Ticket.countDocuments({ ...baseFilter, status: "in_progress" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
+      Ticket.countDocuments({ ...baseFilter, status: "on_hold" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
+      Ticket.countDocuments({ ...baseFilter, status: "resolved" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
+      Ticket.countDocuments({ ...baseFilter, status: "closed" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
+      Ticket.countDocuments({ ...baseFilter, assigneeId: null }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
       (async () => {
-        const resolvedTicketsData = await Ticket.find({
-          ...baseFilter,
-          status: { $in: ["resolved", "closed"] },
-          closedAt: { $exists: true, $ne: null },
-        })
-          .select("createdAt closedAt")
-          .lean();
+        const result = await Ticket.aggregate(
+          [
+            {
+              $match: {
+                ...baseFilter,
+                status: { $in: ["resolved", "closed"] },
+                closedAt: { $exists: true, $ne: null },
+              },
+            },
+            {
+              $project: {
+                durationHours: {
+                  $divide: [{ $subtract: ["$closedAt", "$createdAt"] }, 1000 * 60 * 60],
+                },
+              },
+            },
+            {
+              $group: {
+                _id: null,
+                avgHours: { $avg: "$durationHours" },
+              },
+            },
+          ],
+          { maxTimeMS: DB_QUERY_MAX_TIME_MS }
+        );
 
-        if (resolvedTicketsData.length === 0) return { days: 0, hours: 0 };
+        if (!result.length || result[0].avgHours == null) {
+          return { days: 0, hours: 0 };
+        }
 
-        const totalHours = resolvedTicketsData.reduce((sum, t) => {
-          const created = new Date(t.createdAt).getTime();
-          const closed = new Date(t.closedAt!).getTime();
-          return sum + (closed - created) / (1000 * 60 * 60);
-        }, 0);
-        const hours = totalHours / resolvedTicketsData.length;
-
+        const hours = result[0].avgHours;
         return {
           days: Math.round((hours / 24) * 10) / 10,
           hours: Math.round(hours * 10) / 10,
         };
       })(),
-      Ticket.aggregate([
-        { $match: baseFilter },
-        { $group: { _id: "$status", count: { $sum: 1 } } },
-      ]),
-      Ticket.aggregate([
-        { $match: baseFilter },
-        { $group: { _id: "$priority", count: { $sum: 1 } } },
-      ]),
-      Ticket.aggregate([
-        { $match: baseFilter },
-        {
-          $lookup: {
-            from: "departments",
-            localField: "departmentId",
-            foreignField: "_id",
-            as: "department",
+      Ticket.aggregate(
+        [
+          { $match: baseFilter },
+          { $group: { _id: "$status", count: { $sum: 1 } } },
+        ],
+        { maxTimeMS: DB_QUERY_MAX_TIME_MS }
+      ),
+      Ticket.aggregate(
+        [
+          { $match: baseFilter },
+          { $group: { _id: "$priority", count: { $sum: 1 } } },
+        ],
+        { maxTimeMS: DB_QUERY_MAX_TIME_MS }
+      ),
+      Ticket.aggregate(
+        [
+          { $match: baseFilter },
+          {
+            $lookup: {
+              from: "departments",
+              localField: "departmentId",
+              foreignField: "_id",
+              as: "department",
+            },
           },
-        },
-        { $unwind: { path: "$department", preserveNullAndEmptyArrays: true } },
-        { $group: { _id: "$department.name", count: { $sum: 1 } } },
-      ]),
+          { $unwind: { path: "$department", preserveNullAndEmptyArrays: true } },
+          { $group: { _id: "$department.name", count: { $sum: 1 } } },
+        ],
+        { maxTimeMS: DB_QUERY_MAX_TIME_MS }
+      ),
       (async () => {
         // One grouped aggregation per series instead of 24 sequential
         // countDocuments round-trips. Week windows are computed locally, then
@@ -190,7 +232,7 @@ export async function GET() {
         const counts = new Map(resolvedAgg.map((r) => [r._id, r.count]));
         return windows.map((_, i) => ({ week: windows[i].week, count: counts.get(i) ?? 0 }));
       })(),
-      user.role === "manager" || user.role === "super_admin"
+      user.role === "super_admin" || (user.role === "manager" && user.departmentId)
         ? (async () => {
             const members = await User.find({
               departmentId: user.departmentId ? new mongoose.Types.ObjectId(user.departmentId) : { $exists: true },
@@ -199,6 +241,8 @@ export async function GET() {
             })
               .select("_id name email")
               .lean();
+
+            if (members.length === 0) return [];
 
             // Single grouped aggregation for the whole team (was one Ticket.find
             // per member — N+1 that grows with headcount).
@@ -232,6 +276,93 @@ export async function GET() {
             return workload.sort((a, b) => b.total - a.total);
           })()
         : [],
+      (async () => {
+        const oneYearAgo = new Date();
+        oneYearAgo.setUTCDate(oneYearAgo.getUTCDate() - 365);
+        oneYearAgo.setUTCHours(0, 0, 0, 0);
+
+        const uid = new mongoose.Types.ObjectId(user.id);
+
+        const [ticketsCreatedAgg, ticketsResolvedAgg, commentsAgg] = await Promise.all([
+          Ticket.aggregate(
+            [
+              {
+                $match: {
+                  requesterId: uid,
+                  createdAt: { $gte: oneYearAgo },
+                },
+              },
+              {
+                $group: {
+                  _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            { maxTimeMS: DB_QUERY_MAX_TIME_MS }
+          ),
+          Ticket.aggregate(
+            [
+              {
+                $match: {
+                  assigneeId: uid,
+                  closedAt: { $exists: true, $ne: null, $gte: oneYearAgo },
+                },
+              },
+              {
+                $group: {
+                  _id: { $dateToString: { format: "%Y-%m-%d", date: "$closedAt" } },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            { maxTimeMS: DB_QUERY_MAX_TIME_MS }
+          ),
+          Comment.aggregate(
+            [
+              {
+                $match: {
+                  authorId: uid,
+                  createdAt: { $gte: oneYearAgo },
+                },
+              },
+              {
+                $group: {
+                  _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            { maxTimeMS: DB_QUERY_MAX_TIME_MS }
+          ),
+        ]);
+
+        const countsMap = new Map<string, number>();
+        const merge = (list: { _id: string; count: number }[]) => {
+          for (const item of list) {
+            if (item && item._id) {
+              countsMap.set(item._id, (countsMap.get(item._id) || 0) + item.count);
+            }
+          }
+        };
+        merge(ticketsCreatedAgg as { _id: string; count: number }[]);
+        merge(ticketsResolvedAgg as { _id: string; count: number }[]);
+        merge(commentsAgg as { _id: string; count: number }[]);
+
+        const days: { date: string; count: number }[] = [];
+        const today = new Date();
+        const startDay = new Date(today);
+        startDay.setUTCDate(startDay.getUTCDate() - 364);
+
+        for (let d = new Date(startDay); d <= today; d.setUTCDate(d.getUTCDate() + 1)) {
+          const dateStr = d.toISOString().slice(0, 10);
+          days.push({
+            date: dateStr,
+            count: countsMap.get(dateStr) ?? 0,
+          });
+        }
+        return days;
+      })(),
     ]);
 
     return NextResponse.json({
@@ -255,9 +386,13 @@ export async function GET() {
         weeklyResolved,
       },
       workload: teamWorkload,
+      contributions,
+      quotas: user.role === "super_admin" ? await getSecurityAndCostStatus() : undefined,
     });
   } catch (error) {
     console.error("GET /api/stats error:", error);
     return NextResponse.json({ error: "Failed to fetch stats" }, { status: 500 });
+  } finally {
+    heavySlot?.release();
   }
 }

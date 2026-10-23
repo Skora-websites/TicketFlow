@@ -5,8 +5,11 @@ import { Comment, Ticket } from "@/lib/db/models";
 import { requireApiRole, canAccessTicket } from "@/lib/authz";
 import { stripCommentAttachmentData } from "@/lib/attachments";
 import { deleteAttachment } from "@/lib/attachments-store";
+import { publishTicketEvent } from "@/lib/events";
 
 export const dynamic = "force-dynamic";
+
+const EDIT_WINDOW_MS = 15 * 60 * 1000;
 
 async function loadContext(params: Promise<{ id: string; commentId: string }>) {
   const authResult = await requireApiRole("client", "team", "manager", "super_admin");
@@ -33,8 +36,8 @@ async function loadContext(params: Promise<{ id: string; commentId: string }>) {
     ticket.assigneeId?.toString(),
     ticket.departmentId?.toString(),
     user.departmentId,
-      ticket.transfer,
-      user.ticketAccess
+    ticket.transfer,
+    user.ticketAccess
   );
   if (!canAccess) {
     return { error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
@@ -55,11 +58,30 @@ export async function PATCH(
   try {
     const ctx = await loadContext(params);
     if ("error" in ctx) return ctx.error;
-    const { user, comment } = ctx;
+    const { user, ticket, comment } = ctx;
+    const { id } = await params;
+
+    if (ticket.status === "closed") {
+      return NextResponse.json(
+        { error: "This conversation is closed. Reopen the ticket to continue." },
+        { status: 409 }
+      );
+    }
+
+    if (comment.kind === "system") {
+      return NextResponse.json({ error: "System comments cannot be modified" }, { status: 403 });
+    }
 
     // Only the author may edit their own comment.
     if (comment.authorId.toString() !== user!.id) {
       return NextResponse.json({ error: "You can only edit your own comments" }, { status: 403 });
+    }
+
+    if (Date.now() - new Date(comment.createdAt).getTime() > EDIT_WINDOW_MS) {
+      return NextResponse.json(
+        { error: "Comments can only be edited within 15 minutes of posting" },
+        { status: 403 }
+      );
     }
 
     const bodySchema = (await request.json().catch(() => null)) as { body?: string } | null;
@@ -75,8 +97,10 @@ export async function PATCH(
     comment.updatedAt = new Date();
     await comment.save();
 
+    publishTicketEvent(id, "comment");
+
     const populated = await Comment.findById(comment._id)
-      .populate("authorId", "name email role")
+      .populate("authorId", "name email role avatar")
       .lean();
 
     return NextResponse.json({ comment: stripCommentAttachmentData(populated) });
@@ -93,7 +117,19 @@ export async function DELETE(
   try {
     const ctx = await loadContext(params);
     if ("error" in ctx) return ctx.error;
-    const { user, comment } = ctx;
+    const { user, ticket, comment } = ctx;
+    const { id } = await params;
+
+    if (ticket.status === "closed") {
+      return NextResponse.json(
+        { error: "This conversation is closed. Reopen the ticket to continue." },
+        { status: 409 }
+      );
+    }
+
+    if (comment.kind === "system") {
+      return NextResponse.json({ error: "System comments cannot be deleted" }, { status: 403 });
+    }
 
     // Authors may delete their own comments; super admins may delete any.
     const isAuthor = comment.authorId.toString() === user!.id;
@@ -105,6 +141,9 @@ export async function DELETE(
     await Comment.deleteOne({ _id: comment._id });
     // Best-effort: free the stored bytes too (legacy inline rows have none).
     if (fileId) void deleteAttachment(fileId);
+
+    publishTicketEvent(id, "comment");
+
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error("DELETE /api/tickets/[id]/comments/[commentId] error:", error);

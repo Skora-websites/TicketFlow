@@ -20,17 +20,17 @@ interface StatusBadgeProps {
 
 export function StatusBadge({ status, className }: StatusBadgeProps) {
   const statusConfig: Record<string, { label: string; class: string; dot: string }> = {
-    open: { label: "Open", class: "status-open", dot: "bg-info" },
-    in_progress: { label: "In Progress", class: "status-in_progress", dot: "bg-warning" },
-    on_hold: { label: "On Hold", class: "status-on_hold", dot: "bg-accent" },
-    resolved: { label: "Resolved", class: "status-resolved", dot: "bg-success" },
-    closed: { label: "Closed", class: "status-closed", dot: "bg-muted-foreground/50" },
+    open: { label: "Open", class: "status-open", dot: "bg-accent border border-accent/40 animate-pulse" },
+    in_progress: { label: "In Progress", class: "status-in_progress", dot: "bg-primary" },
+    on_hold: { label: "On Hold", class: "status-on_hold", dot: "bg-purple-500" },
+    resolved: { label: "Resolved", class: "status-resolved", dot: "bg-emerald-500" },
+    closed: { label: "Closed", class: "status-closed", dot: "bg-slate-400" },
   };
 
   const config = statusConfig[status] ?? { label: status, class: "", dot: "bg-muted-foreground/50" };
 
   return (
-    <Badge className={cn(config.class, className)} variant="outline">
+    <Badge className={cn("px-2.5 py-0.5 shadow-2xs font-semibold", config.class, className)} variant="outline">
       <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", config.dot)} aria-hidden />
       {config.label}
     </Badge>
@@ -44,16 +44,16 @@ interface PriorityBadgeProps {
 
 export function PriorityBadge({ priority, className }: PriorityBadgeProps) {
   const priorityConfig: Record<string, { label: string; class: string; dot: string }> = {
-    low: { label: "Low", class: "priority-low", dot: "bg-info" },
-    medium: { label: "Medium", class: "priority-medium", dot: "bg-warning" },
-    high: { label: "High", class: "priority-high", dot: "bg-destructive" },
-    urgent: { label: "Urgent", class: "priority-urgent", dot: "bg-destructive" },
+    low: { label: "Low", class: "priority-low", dot: "bg-sky-500" },
+    medium: { label: "Medium", class: "priority-medium", dot: "bg-amber-500" },
+    high: { label: "High", class: "priority-high", dot: "bg-orange-500" },
+    urgent: { label: "Urgent", class: "priority-urgent", dot: "bg-rose-500 animate-pulse" },
   };
 
   const config = priorityConfig[priority] ?? { label: priority, class: "", dot: "bg-muted-foreground/50" };
 
   return (
-    <Badge className={cn(config.class, className)} variant="outline">
+    <Badge className={cn("px-2.5 py-0.5 shadow-2xs font-semibold", config.class, className)} variant="outline">
       <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", config.dot)} aria-hidden />
       {config.label}
     </Badge>
@@ -74,8 +74,8 @@ export function CategoryBadge({ category, className }: CategoryBadgeProps) {
     .join(" ");
 
   return (
-    <Badge variant="secondary" className={cn("gap-1", className)}>
-      <Tag className="h-3 w-3" aria-hidden />
+    <Badge variant="secondary" className={cn("gap-1 bg-secondary/80 border border-border/60 text-secondary-foreground font-medium", className)}>
+      <Tag className="h-3 w-3 text-muted-foreground" aria-hidden />
       {label}
     </Badge>
   );
@@ -134,11 +134,16 @@ interface UserAvatarProps {
   name: string;
   email?: string;
   role?: string;
+  avatar?: string | null;
+  image?: string | null;
   className?: string;
   size?: "sm" | "md" | "lg";
 }
 
-export function UserAvatar({ name, email, role, className, size = "md" }: UserAvatarProps) {
+export function UserAvatar({ name, email, role, avatar, image, className, size = "md" }: UserAvatarProps) {
+  const [imgError, setImgError] = useState(false);
+  const photo = !imgError ? (avatar || image) : null;
+
   // Defensive: undefined/empty names crash .split() and unmount whole pages
   // (seen when an optimistic assignee patch briefly carried a raw id string).
   const initials = (name || "?")
@@ -166,14 +171,23 @@ export function UserAvatar({ name, email, role, className, size = "md" }: UserAv
   return (
     <div
       className={cn(
-        "flex items-center justify-center rounded-full font-medium",
+        "relative flex shrink-0 items-center justify-center overflow-hidden rounded-full font-medium select-none",
         sizeClasses[size],
         role ? roleColors[role] : "bg-muted text-muted-foreground",
         className
       )}
       title={email}
     >
-      {initials}
+      {photo ? (
+        <img
+          src={photo}
+          alt={name}
+          className="h-full w-full object-cover"
+          onError={() => setImgError(true)}
+        />
+      ) : (
+        initials
+      )}
     </div>
   );
 }

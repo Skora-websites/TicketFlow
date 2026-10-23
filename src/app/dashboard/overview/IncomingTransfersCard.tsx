@@ -251,7 +251,7 @@ export function IncomingTransfersCard({ role, onChanged }: IncomingTransfersCard
                       )}
                       <div className="flex items-center justify-end gap-2">
                         <Button
-                          variant="ghost"
+                          variant="outline"
                           size="sm"
                           disabled={isBusy}
                           onClick={() => {
@@ -263,27 +263,27 @@ export function IncomingTransfersCard({ role, onChanged }: IncomingTransfersCard
                         </Button>
                         <Button
                           size="sm"
-                          variant={confirming?.action === "reject" ? "destructive" : "default"}
+                          variant={confirming?.action === "reject" ? "destructive" : "success"}
                           loading={isBusy}
                           onClick={() => decide(t._id, confirming!.action)}
                         >
-                          Confirm {confirming?.action}
+                          {confirming?.action === "reject" ? "Confirm Deny" : "Confirm Approve"}
                         </Button>
                       </div>
                     </div>
                   ) : (
                       <>
                         <Button
-                          variant="outline"
+                          variant="destructive-outline"
                           size="sm"
                           disabled={isBusy}
                           onClick={() => setConfirming({ id: t._id, action: "reject" })}
-                          className="text-destructive hover:bg-destructive/10 hover:text-destructive"
                         >
                           <X className="mr-1 h-3.5 w-3.5" aria-hidden />
-                          Reject
+                          Deny
                         </Button>
                         <Button
+                          variant="success"
                           size="sm"
                           disabled={isBusy}
                           onClick={() => setConfirming({ id: t._id, action: "approve" })}

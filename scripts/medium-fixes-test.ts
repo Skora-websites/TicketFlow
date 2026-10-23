@@ -95,12 +95,12 @@ async function main() {
   });
   test("exact ticket number becomes a pure lookup (no $text — it would dead-match)", () => {
     assert.deepStrictEqual(buildTicketSearchFilter("TK-1024"), {
-      ticketNumber: { $regex: "TK-?1024$", $options: "i" },
+      ticketNumber: { $regex: "TK-?0*1024$", $options: "i" },
     });
   });
   test("bare digits also become a pure lookup (3-6 digits)", () => {
     assert.deepStrictEqual(buildTicketSearchFilter("1024"), {
-      ticketNumber: { $regex: "TK-?1024$", $options: "i" },
+      ticketNumber: { $regex: "TK-?0*1024$", $options: "i" },
     });
   });
   test("mixed number + words searches text tokens (AND number would only narrow)", () => {

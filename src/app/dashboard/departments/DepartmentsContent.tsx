@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Label } from "@/components/ui/label";
 import { Plus, Building2, Edit, Trash2 } from "lucide-react";
 import { IDepartment } from "@/lib/db/models";
@@ -133,27 +134,36 @@ export function DepartmentsContent() {
 
   if (isLoading) {
     return (
-      <div className="space-y-6 animate-pulse" aria-label="Loading departments" aria-busy="true">
-        <div>
-          <div className="h-8 bg-muted rounded w-1/4 mb-2" />
-          <div className="h-4 bg-muted rounded w-1/3" />
+      <div className="space-y-6" aria-label="Loading departments" aria-busy="true">
+        {/* Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <Skeleton className="h-8 w-44 rounded-md mb-1.5" />
+            <Skeleton className="h-4 w-72 rounded-md" />
+          </div>
+          <Skeleton className="w-full sm:w-36 h-9.5 sm:h-8.5 rounded-lg" />
         </div>
+
+        {/* Departments Grid */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {[1, 2, 3].map((i) => (
             <Card key={i} className="card-elevated">
               <CardContent className="p-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-12 h-12 rounded-xl bg-muted" />
-                  <div className="space-y-2">
-                    <div className="h-5 bg-muted rounded w-1/3" />
-                    <div className="h-3 bg-muted rounded w-1/4 font-mono" />
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <Skeleton className="w-12 h-12 rounded-xl flex-shrink-0" />
+                    <div className="space-y-1.5">
+                      <Skeleton className="h-5 w-28 rounded" />
+                      <Skeleton className="h-3 w-16 rounded font-mono" />
+                    </div>
                   </div>
                 </div>
-                <div className="h-4 bg-muted rounded w-1/2 mb-4" />
-                <div className="space-y-2">
-                  <div className="h-6 w-16 bg-muted rounded" />
-                  <div className="h-6 w-16 bg-muted rounded" />
-                  <div className="h-6 w-16 bg-muted rounded" />
+
+                <Skeleton className="h-4 w-4/5 rounded mb-4" />
+
+                <div className="flex items-center gap-2 pt-4 border-t border-border">
+                  <Skeleton className="h-8 flex-1 rounded-md" />
+                  <Skeleton className="h-8 flex-1 rounded-md" />
                 </div>
               </CardContent>
             </Card>
@@ -186,7 +196,7 @@ export function DepartmentsContent() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
+            <Button onClick={openCreateDialog} className="w-full sm:w-auto h-9.5 sm:h-8.5 font-bold">
               <Plus className="w-4 h-4 mr-2" />
               Add Department
             </Button>
@@ -264,11 +274,11 @@ export function DepartmentsContent() {
               )}
 
               <div className="flex items-center gap-2 pt-4 border-t border-border">
-                <Button variant="ghost" size="sm" onClick={() => openEditDialog(dept)} className="gap-2 flex-1">
+                <Button variant="outline" size="sm" onClick={() => openEditDialog(dept)} className="gap-2 flex-1">
                   <Edit className="w-4 h-4" />
                   Edit
                 </Button>
-                <Button variant="ghost" size="sm" onClick={() => handleDelete(dept)} className="gap-2 flex-1 text-destructive hover:text-destructive">
+                <Button variant="destructive-outline" size="sm" onClick={() => handleDelete(dept)} className="gap-2 flex-1">
                   <Trash2 className="w-4 h-4" />
                   Delete
                 </Button>
@@ -302,8 +312,12 @@ export function DepartmentsContent() {
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmDelete}>Delete</AlertDialogAction>
+            <AlertDialogCancel asChild>
+              <Button variant="outline">Cancel</Button>
+            </AlertDialogCancel>
+            <AlertDialogAction asChild>
+              <Button variant="destructive" onClick={confirmDelete}>Delete department</Button>
+            </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

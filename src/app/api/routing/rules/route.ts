@@ -5,6 +5,7 @@ import { connectDB } from "@/lib/db/mongo";
 import { RoutingRule } from "@/lib/db/models";
 import { requireApiRole } from "@/lib/authz";
 import { validateManagerRuleScope, filterRulesInManagerScope } from "@/lib/routing/ruleScope";
+import { enforceRateLimit, DB_QUERY_MAX_TIME_MS } from "@/lib/security";
 
 const conditionSchema = z.object({
   field: z.enum(["keyword", "category", "priority", "requester"]),
@@ -31,10 +32,9 @@ const ruleSchema = z.object({
   status: z.enum(["active", "paused", "draft"]).default("draft"),
 });
 
-// Validates list-query params (?limit=abc previously produced NaN limits).
 const rulesQuerySchema = z.object({
   status: z.enum(["active", "paused", "draft"]).optional(),
-  limit: z.coerce.number().int().positive().max(500).default(100),
+  limit: z.coerce.number().int().positive().max(50).default(50),
 });
 
 export async function GET(request: NextRequest) {
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
     let rules = await RoutingRule.find(filter)
       .sort({ priority: 1, createdAt: -1 })
       .limit(limit)
+      .maxTimeMS(DB_QUERY_MAX_TIME_MS)
       .lean();
 
     // Managers only see rules scoped to their own department (batched lookups).
@@ -76,6 +77,11 @@ export async function POST(request: NextRequest) {
     const authResult = await requireApiRole("super_admin", "manager");
     if (authResult instanceof NextResponse) return authResult;
     const user = authResult;
+
+    // Rate Limit: 20 rule creations / min per manager/admin
+    const rateCheck = await enforceRateLimit(`routing:create:${user.id}`, 20, 60_000);
+    if (rateCheck) return rateCheck;
+
     await connectDB();
 
     const body = await request.json();
