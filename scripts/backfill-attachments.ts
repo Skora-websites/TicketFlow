@@ -39,7 +39,7 @@ function loadDotenv() {
 loadDotenv();
 
 import mongoose from "mongoose";
-import { GridFSBucket, ObjectId } from "mongodb";
+type GridFSBucket = InstanceType<typeof mongoose.mongo.GridFSBucket>;
 import { Ticket, Comment } from "../src/lib/db/models";
 
 const STRIP = process.argv.includes("--strip");
@@ -81,7 +81,7 @@ async function migrateOne(
     return null;
   }
   counts.scanned += 1;
-  const fileId = new ObjectId();
+  const fileId = new mongoose.Types.ObjectId();
   if (DRY_RUN) {
     counts.migrated += 1;
     return "dry-run";
@@ -97,7 +97,7 @@ async function migrateOne(
 }
 
 async function verifyOne(bucket: GridFSBucket, fileId: string, expectedSize: number): Promise<boolean> {
-  const files = bucket.find({ _id: new ObjectId(fileId) }).limit(1);
+  const files = bucket.find({ _id: new mongoose.Types.ObjectId(fileId) }).limit(1);
   const meta = await files.next();
   return !!meta && meta.length === expectedSize;
 }
@@ -192,7 +192,7 @@ async function stripCommentBytes(): Promise<number> {
 
 async function main() {
   await mongoose.connect(process.env.MONGODB_URI!, { dbName: process.env.MONGODB_DB || undefined });
-  const bucket = new GridFSBucket(mongoose.connection.db!, { bucketName: "attachments" });
+  const bucket = new mongoose.mongo.GridFSBucket(mongoose.connection.db!, { bucketName: "attachments" });
 
   await backfillTickets(bucket);
   await backfillComments(bucket);

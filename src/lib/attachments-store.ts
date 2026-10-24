@@ -1,8 +1,11 @@
 import "server-only";
 
-import { GridFSBucket, ObjectId } from "mongodb";
 import type { Readable } from "stream";
 import mongoose from "mongoose";
+
+type GridFSBucket = InstanceType<typeof mongoose.mongo.GridFSBucket>;
+type ObjectId = mongoose.Types.ObjectId;
+
 
 /**
  * Attachment bytes live OUTSIDE ticket/comment documents. Two reasons this
@@ -38,7 +41,7 @@ export function getAttachmentsBucket(): GridFSBucket {
   }
   const key = conn.name ?? "default";
   if (cachedBucket && cachedConnKey === key) return cachedBucket;
-  cachedBucket = new GridFSBucket(conn.db, {
+  cachedBucket = new mongoose.mongo.GridFSBucket(conn.db, {
     bucketName: ATTACHMENTS_BUCKET,
     chunkSizeBytes: CHUNK_SIZE_BYTES,
   });
@@ -61,7 +64,7 @@ export async function putAttachment(
   meta: { filename: string; mime: string }
 ): Promise<StoredFile> {
   const bucket = getAttachmentsBucket();
-  const fileId = new ObjectId();
+  const fileId = new mongoose.Types.ObjectId();
   // The driver's typed options carry `metadata` (contentType is not part of
   // the v7 typings) — mime is stored under metadata.mime and read back in
   // openAttachmentStream, though download routes serve the parent doc's mime.
@@ -88,7 +91,7 @@ export async function openAttachmentStream(
 ): Promise<{ stream: Readable; length: number; mime: string | null; filename: string } | null> {
   if (!mongoose.connection.db) return null;
   const bucket = getAttachmentsBucket();
-  const files = bucket.find({ _id: new ObjectId(fileId) }).limit(1);
+  const files = bucket.find({ _id: new mongoose.Types.ObjectId(fileId) }).limit(1);
   const meta = await files.next();
   if (!meta) return null;
   return {
@@ -110,12 +113,12 @@ export async function openAttachmentStream(
 export async function deleteAttachment(fileId: string): Promise<void> {
   if (!mongoose.connection.db) return;
   try {
-    await getAttachmentsBucket().delete(new ObjectId(fileId));
+    await getAttachmentsBucket().delete(new mongoose.Types.ObjectId(fileId));
   } catch {
     // File already gone (double delete, backfill race) — nothing to do.
   }
 }
 
 export function isValidStoredFileId(value: unknown): value is string {
-  return typeof value === "string" && ObjectId.isValid(value);
+  return typeof value === "string" && mongoose.Types.ObjectId.isValid(value);
 }
