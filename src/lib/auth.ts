@@ -196,42 +196,47 @@ export const authConfig: NextAuthConfig = {
         const now = Date.now();
         const cached = sessionUserCache.get(token.id);
         if (!cached || now - cached.checkedAt > SESSION_CHECK_TTL_MS) {
-          await connectDB();
-          const dbUser = await User.findById(token.id)
-            // sessionVersion MUST be in the projection: the comparison below
-            // treats a missing field as 0, which would instantly kill the
-            // session of anyone whose password was ever changed/reset (their
-            // JWT carries the real, bumped version).
-            .select("role departmentId ticketAccess active sessionVersion avatar")
-            .lean();
-          sessionUserCache.set(token.id, { checkedAt: now });
-          if (sessionUserCache.size > 1000) {
-            // Bound cache growth; entries are cheap so full prune is fine.
-            sessionUserCache.clear();
-          }
-          if (!dbUser || dbUser.active === false) {
-            token.active = false;
-          } else {
-            // Session-version check: a password change bumps the user's
-            // version, so any JWT minted before it (stolen session) fails here.
-            // Legacy tokens without a version adopt the current one once, so
-            // this deploy doesn't log everyone out — but they die on the next
-            // password change.
-            const dbVersion = dbUser.sessionVersion ?? 0;
-            const tokenVersion =
-              typeof token.sessionVersion === "number" ? token.sessionVersion : dbVersion;
-            token.sessionVersion = tokenVersion;
-            if (tokenVersion !== dbVersion) {
+          try {
+            await connectDB();
+            const dbUser = await User.findById(token.id)
+              // sessionVersion MUST be in the projection: the comparison below
+              // treats a missing field as 0, which would instantly kill the
+              // session of anyone whose password was ever changed/reset (their
+              // JWT carries the real, bumped version).
+              .select("role departmentId ticketAccess active sessionVersion avatar")
+              .lean();
+            sessionUserCache.set(token.id, { checkedAt: now });
+            if (sessionUserCache.size > 1000) {
+              // Bound cache growth; entries are cheap so full prune is fine.
+              sessionUserCache.clear();
+            }
+            if (!dbUser || dbUser.active === false) {
               token.active = false;
             } else {
-              token.active = true;
-              token.role = dbUser.role;
-              token.departmentId = dbUser.departmentId?.toString();
-              token.ticketAccess = dbUser.ticketAccess ?? "department";
-              if (dbUser.avatar !== undefined) {
-                token.image = toAvatarUrl(dbUser.avatar, dbUser._id.toString());
+              // Session-version check: a password change bumps the user's
+              // version, so any JWT minted before it (stolen session) fails here.
+              // Legacy tokens without a version adopt the current one once, so
+              // this deploy doesn't log everyone out — but they die on the next
+              // password change.
+              const dbVersion = dbUser.sessionVersion ?? 0;
+              const tokenVersion =
+                typeof token.sessionVersion === "number" ? token.sessionVersion : dbVersion;
+              token.sessionVersion = tokenVersion;
+              if (tokenVersion !== dbVersion) {
+                token.active = false;
+              } else {
+                token.active = true;
+                token.role = dbUser.role;
+                token.departmentId = dbUser.departmentId?.toString();
+                token.ticketAccess = dbUser.ticketAccess ?? "department";
+                if (dbUser.avatar !== undefined) {
+                  token.image = toAvatarUrl(dbUser.avatar, dbUser._id.toString());
+                }
               }
             }
+          } catch (recheckErr) {
+            // shortcut: DB slow or unreachable during background re-check, retain valid signed JWT claims
+            console.warn("Session background re-check skipped:", recheckErr);
           }
         }
       }

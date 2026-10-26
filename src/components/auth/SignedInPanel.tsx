@@ -22,7 +22,10 @@ export function SignedInPanel() {
 
   const user = session.user as { name?: string; email?: string; role?: string };
   const isClient = user.role === "client";
-  const workspaceHref = isClient ? "/client/tickets" : "/dashboard/overview";
+  const searchParams = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+  const callbackUrl = searchParams?.get("callbackUrl");
+  const defaultHref = isClient ? "/client/tickets" : "/dashboard/overview";
+  const workspaceHref = callbackUrl && callbackUrl.startsWith("/") ? callbackUrl : defaultHref;
   const otherHref = isClient ? "/login" : "/client/tickets";
 
   const switchAccount = async () => {

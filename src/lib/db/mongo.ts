@@ -24,8 +24,9 @@ export async function connectDB(): Promise<typeof mongoose> {
     const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ticketing";
     cached.promise = mongoose
       .connect(uri, {
-        maxPoolSize: 10,
-        minPoolSize: 1,
+        maxPoolSize: 5,
+        minPoolSize: 0,
+        maxIdleTimeMS: 10000,
         serverSelectionTimeoutMS: 5000,
         socketTimeoutMS: 20000,
         connectTimeoutMS: 10000,
