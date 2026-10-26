@@ -63,7 +63,7 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setFormError("Invalid email or password");
+        setFormError("Invalid email or password. Please verify database connection and credentials.");
       } else {
         const sessionRes = await fetch("/api/auth/session");
         const sessionData = await sessionRes.json();
@@ -72,11 +72,10 @@ function LoginForm() {
           callbackUrl === "/dashboard/overview" && role === "client"
             ? "/client/tickets"
             : callbackUrl;
-        router.push(target);
-        router.refresh();
+        window.location.href = target;
       }
     } catch {
-      setFormError("Something went wrong. Please try again.");
+      setFormError("Something went wrong connecting to the auth service. Please try again.");
     } finally {
       setIsLoading(false);
     }
@@ -95,7 +94,7 @@ function LoginForm() {
         callbackUrl,
       });
       if (result?.error) {
-        setFormError("Failed to sign in as demo user");
+        setFormError("Failed to sign in as demo user. Check database connectivity.");
       } else {
         const sessionRes = await fetch("/api/auth/session");
         const sessionData = await sessionRes.json();
@@ -104,11 +103,10 @@ function LoginForm() {
           callbackUrl === "/dashboard/overview" && role === "client"
             ? "/client/tickets"
             : callbackUrl;
-        router.push(target);
-        router.refresh();
+        window.location.href = target;
       }
     } catch {
-      setFormError("Failed to sign in as demo user");
+      setFormError("Failed to sign in as demo user. Check database connectivity.");
     } finally {
       setIsLoading(false);
     }

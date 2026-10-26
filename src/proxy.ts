@@ -141,7 +141,12 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
-  const rawToken = await getToken({ req: request, secret: process.env.AUTH_SECRET });
+  const rawToken = await getToken({
+    req: request,
+    secret:
+      process.env.AUTH_SECRET ||
+      "ticketflow-session-secret-key-32chars-min-prod-fallback",
+  });
   // Sessions re-validated in auth.ts: inactive/deleted users are logged out.
   const token = rawToken && rawToken.active === false ? null : rawToken;
 

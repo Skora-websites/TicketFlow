@@ -67,7 +67,20 @@ export const authConfig: NextAuthConfig = {
         await connectDB();
 
         const email = credentials.email.trim().toLowerCase();
-        const user = await User.findOne({ email }).select("+passwordHash");
+        let user = await User.findOne({ email }).select("+passwordHash");
+        if (!user) {
+          try {
+            const count = await User.countDocuments();
+            if (count === 0) {
+              console.log("Database has no users. Auto-seeding initial demo data...");
+              const { seed } = await import("@/lib/db/seed");
+              await seed();
+              user = await User.findOne({ email }).select("+passwordHash");
+            }
+          } catch (seedErr) {
+            console.error("Auto-seed error:", seedErr);
+          }
+        }
         if (!user || !user.active) {
           return null;
         }
