@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { signIn } from "next-auth/react";
 import Link from "next/link";
@@ -29,8 +29,15 @@ function passwordStrength(password: string): { score: number; label: string } {
 }
 
 export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
+  );
+}
+
+function SignupForm() {
   const router = useRouter();
-  // No auto-redirect — signed-in visitors get an explicit switch panel.
   useAuthedRedirect();
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");

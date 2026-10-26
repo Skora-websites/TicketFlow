@@ -2,14 +2,13 @@
 
 import { useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { useSearchParams } from "next/navigation";
 
 export function useAuthedRedirect() {
   const { data: session, status } = useSession();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     if (status === "authenticated" && session?.user) {
+      const searchParams = new URLSearchParams(window.location.search);
       if (searchParams.get("switch") === "true") return;
 
       const callbackUrl = searchParams.get("callbackUrl");
@@ -22,5 +21,5 @@ export function useAuthedRedirect() {
 
       window.location.replace(target);
     }
-  }, [status, session, searchParams]);
+  }, [status, session]);
 }
