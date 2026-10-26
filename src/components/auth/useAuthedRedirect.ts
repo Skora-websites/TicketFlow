@@ -1,13 +1,26 @@
 "use client";
 
-/**
- * Placeholder for the removed auto-redirect hook.
- * Middleware no longer bounces authed users off /login (that made the
- * browser Back button an inescapable loop), and pages no longer auto-reroute
- * either: during dev you need to reach the login form to switch accounts.
- * Auth pages now show a SignedInPanel with explicit actions instead.
- * Kept as a named export so older imports keep resolving.
- */
+import { useEffect } from "react";
+import { useSession } from "next-auth/react";
+import { useSearchParams } from "next/navigation";
+
 export function useAuthedRedirect() {
-  /* intentionally inert */
+  const { data: session, status } = useSession();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (status === "authenticated" && session?.user) {
+      if (searchParams.get("switch") === "true") return;
+
+      const callbackUrl = searchParams.get("callbackUrl");
+      const isClient = session.user.role === "client";
+      const defaultTarget = isClient ? "/client/tickets" : "/dashboard/overview";
+      const target =
+        callbackUrl && callbackUrl.startsWith("/") && callbackUrl !== "/login"
+          ? callbackUrl
+          : defaultTarget;
+
+      window.location.replace(target);
+    }
+  }, [status, session, searchParams]);
 }

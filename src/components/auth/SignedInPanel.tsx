@@ -31,7 +31,7 @@ export function SignedInPanel() {
   const switchAccount = async () => {
     setSwitching(true);
     await signOut({ redirect: false });
-    router.push("/login");
+    window.location.href = "/login?switch=true";
   };
 
   return (
