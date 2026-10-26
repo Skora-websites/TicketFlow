@@ -141,12 +141,37 @@ export default async function proxy(request: NextRequest) {
     }
   }
 
-  const rawToken = await getToken({
+  const isSecure =
+    request.url.startsWith("https://") ||
+    request.headers.get("x-forwarded-proto") === "https";
+
+  const secret =
+    process.env.AUTH_SECRET ||
+    "ticketflow-session-secret-key-32chars-min-prod-fallback";
+
+  let rawToken = await getToken({
     req: request,
-    secret:
-      process.env.AUTH_SECRET ||
-      "ticketflow-session-secret-key-32chars-min-prod-fallback",
+    secret,
+    secureCookie: isSecure,
   });
+
+  if (!rawToken) {
+    rawToken = await getToken({
+      req: request,
+      secret,
+      secureCookie: !isSecure,
+    });
+  }
+
+  if (!rawToken && isSecure) {
+    rawToken = await getToken({
+      req: request,
+      secret,
+      secureCookie: true,
+      cookieName: "__Secure-next-auth.session-token",
+    });
+  }
+
   // Sessions re-validated in auth.ts: inactive/deleted users are logged out.
   const token = rawToken && rawToken.active === false ? null : rawToken;
 

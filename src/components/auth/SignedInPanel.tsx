@@ -53,7 +53,7 @@ export function SignedInPanel() {
             a different account.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => router.push(workspaceHref)}>
+            <Button size="sm" onClick={() => { window.location.href = workspaceHref; }}>
               Open workspace
             </Button>
             <Button
@@ -66,11 +66,11 @@ export function SignedInPanel() {
               {switching ? "Signing out…" : "Switch account"}
             </Button>
             {isClient ? (
-              <Button size="sm" variant="ghost" onClick={() => router.push("/login")}>
+              <Button size="sm" variant="ghost" onClick={() => { window.location.href = "/login"; }}>
                 Staff sign-in
               </Button>
             ) : (
-              <Button size="sm" variant="ghost" onClick={() => router.push(otherHref)}>
+              <Button size="sm" variant="ghost" onClick={() => { window.location.href = otherHref; }}>
                 Client portal
               </Button>
             )}
