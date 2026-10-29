@@ -21,7 +21,9 @@ export async function connectDB(): Promise<typeof mongoose> {
   }
 
   if (!cached.promise) {
-    const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ticketing";
+    const uri =
+      process.env.MONGODB_URI ||
+      "mongodb+srv://shubhapallavi_db_user:KE5r9eaADlv4FmZa@cluster0.i1okwxw.mongodb.net/ticketflow?retryWrites=true&w=majority&appName=Cluster0";
     cached.promise = mongoose
       .connect(uri, {
         maxPoolSize: 5,
