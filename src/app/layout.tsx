@@ -48,20 +48,22 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="en" className="dark" data-color-theme="purple" suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
             __html: `try{
               var p = window.location.pathname;
               var isApp = p.startsWith('/dashboard') || p.startsWith('/client');
-              if (!isApp) {
+              var t = localStorage.getItem('ticketflow-color-theme') || 'purple';
+              document.documentElement.setAttribute('data-color-theme', t);
+              var m = localStorage.getItem('theme') || 'dark';
+              if (isApp && m === 'light') {
+                document.documentElement.classList.add('light');
+                document.documentElement.classList.remove('dark');
+              } else {
                 document.documentElement.classList.add('dark');
                 document.documentElement.classList.remove('light');
-                document.documentElement.setAttribute('data-color-theme', 'purple');
-              } else {
-                var t = localStorage.getItem('ticketflow-color-theme');
-                if (t) document.documentElement.setAttribute('data-color-theme', t);
               }
             }catch(e){}`,
           }}
