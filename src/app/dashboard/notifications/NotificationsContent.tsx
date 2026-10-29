@@ -52,21 +52,60 @@ export function NotificationsContent() {
 
   useEffect(() => {
     load();
+
+    const onReadAll = () => {
+      setItems((prev) => prev.map((n) => ({ ...n, read: true })));
+    };
+    const onReadSingle = (e: Event) => {
+      const targetId = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (targetId) {
+        setItems((prev) => prev.map((n) => (n.id === targetId ? { ...n, read: true } : n)));
+      }
+    };
+
+    window.addEventListener("ticketflow:notifications-read-all", onReadAll);
+    window.addEventListener("ticketflow:notification-read", onReadSingle);
+
+    return () => {
+      window.removeEventListener("ticketflow:notifications-read-all", onReadAll);
+      window.removeEventListener("ticketflow:notification-read", onReadSingle);
+    };
   }, [load]);
 
   const markRead = async (id: string) => {
-    setItems((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
-    await fetch(`/api/notifications/${id}`, { method: "PATCH" }).catch(() => {});
+    const prev = items;
+    setItems((current) => current.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    window.dispatchEvent(new CustomEvent("ticketflow:notification-read", { detail: { id } }));
+    try {
+      const res = await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setItems(prev);
+    }
   };
 
   const markAllRead = async () => {
-    setItems((prev) => prev.map((n) => ({ ...n, read: true })));
-    await fetch("/api/notifications/read-all", { method: "POST" }).catch(() => {});
+    const prev = items;
+    setItems((current) => current.map((n) => ({ ...n, read: true })));
+    window.dispatchEvent(new CustomEvent("ticketflow:notifications-read-all"));
+    try {
+      const res = await fetch("/api/notifications/read-all", { method: "POST" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setItems(prev);
+    }
   };
 
   const remove = async (id: string) => {
-    setItems((prev) => prev.filter((n) => n.id !== id));
-    await fetch(`/api/notifications/${id}`, { method: "DELETE" }).catch(() => {});
+    const prev = items;
+    setItems((current) => current.filter((n) => n.id !== id));
+    window.dispatchEvent(new CustomEvent("ticketflow:notification-removed", { detail: { id } }));
+    try {
+      const res = await fetch(`/api/notifications/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setItems(prev);
+    }
   };
 
   const unreadCount = items.filter((n) => !n.read).length;

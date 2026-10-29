@@ -261,19 +261,28 @@ export function UsersContent() {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
+    const target = deleteTarget;
+    const prevUsers = users;
+    // Optimistically remove and close confirmation modal immediately
+    setUsers((prev) => prev.filter((u) => u._id !== target._id));
+    setDeleteTarget(null);
+    toast({ title: "User deleted" });
+
     try {
-      const res = await fetch(`/api/users/${deleteTarget._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/users/${target._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete user");
-      toast({ title: "User deleted" });
-      setUsers((prev) => prev.filter((u) => u._id !== deleteTarget._id));
     } catch (err) {
+      setUsers(prevUsers);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete user", variant: "destructive" });
-    } finally {
-      setDeleteTarget(null);
     }
   };
 
   const handleToggleActive = async (user: UserWithDept) => {
+    const prevUsers = users;
+    // Optimistically flip active state immediately
+    setUsers((prev) => prev.map((u) => (u._id === user._id ? { ...u, active: !user.active } : u)));
+    toast({ title: user.active ? "User deactivated" : "User activated" });
+
     try {
       const res = await fetch(`/api/users/${user._id}`, {
         method: "PATCH",
@@ -281,9 +290,8 @@ export function UsersContent() {
         body: JSON.stringify({ active: !user.active }),
       });
       if (!res.ok) throw new Error("Failed to update user");
-      setUsers((prev) => prev.map((u) => (u._id === user._id ? { ...u, active: !user.active } : u)));
-      toast({ title: "User updated" });
     } catch (err) {
+      setUsers(prevUsers);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to update user", variant: "destructive" });
     }
   };

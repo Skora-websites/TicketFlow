@@ -13,7 +13,7 @@ import { ViewersChip } from "./ViewersChip";
 import { TransferPanel, TicketMiniDashboard, type TransferSubdoc } from "./TransferPanel";
 import { TransferDialog } from "./TransferDialog";
 import type { ITicket, IComment, IUser, IDepartment } from "@/lib/db/models";
-import { canSetPriority, isConversationParticipant } from "@/lib/transfer";
+import { canSetPriority, isConversationParticipant, isReceivingManager, toTransferRef } from "@/lib/transfer";
 import { TRANSFERS_ENABLED } from "@/lib/features";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -184,7 +184,29 @@ export function TicketDetail({
   const canAssign = currentUser.role === "manager";
   const canForward =
     currentUser.role === "super_admin" && !assigneeIdStr && ticket.status !== "closed";
-  const canDelete = ["super_admin", "manager"].includes(currentUser.role) && !!onDeleteTicket;
+
+  // A ticket should only be deleted by manager of the receiving agent or the superadmin, noone else
+  const assigneeDeptId =
+    (ticket.assigneeId as IUser | undefined)?.departmentId?.toString() ||
+    (ticket.departmentId as IDepartment | undefined)?._id?.toString() ||
+    ticket.departmentId?.toString();
+  const assigneeReportingManagerId = (ticket.assigneeId as IUser | undefined)?.reportingManagerId?.toString();
+  const transferRef = toTransferRef(transfer as any);
+  const isTargetReceivingManager = isReceivingManager(
+    { id: currentUser.id, role: currentUser.role, departmentId: currentUser.departmentId },
+    transferRef
+  );
+
+  const isReceivingAgentManager =
+    currentUser.role === "manager" &&
+    (
+      (currentUser.departmentId && assigneeDeptId === currentUser.departmentId) ||
+      (assigneeReportingManagerId && currentUser.id === assigneeReportingManagerId) ||
+      isTargetReceivingManager
+    );
+
+  const canDelete =
+    (currentUser.role === "super_admin" || isReceivingAgentManager) && !!onDeleteTicket;
 
   // Client reopen: requester of a resolved/closed ticket may send it back to open.
   const isOwnTicket = ticket.requesterId?._id?.toString() === currentUser.id;
@@ -216,16 +238,21 @@ export function TicketDetail({
       setIsDenying(true);
       return;
     }
+    const prevStatus = editStatus;
+    setEditStatus(newStatus as any);
     try {
       await onUpdateTicket({ status: newStatus });
       toast({ title: "Status updated", description: `Ticket marked as ${newStatus.replace("_", " ")}` });
     } catch {
+      setEditStatus(prevStatus);
       toast({ title: "Error", description: "Failed to update status", variant: "destructive" });
     }
   };
 
   const confirmDenial = async () => {
     setIsSubmittingDenial(true);
+    const prevStatus = editStatus;
+    setEditStatus("closed");
     try {
       await onUpdateTicket({ status: "closed" });
       if (denialReason.trim()) {
@@ -238,6 +265,7 @@ export function TicketDetail({
       setIsDenying(false);
       setDenialReason("");
     } catch {
+      setEditStatus(prevStatus);
       toast({ title: "Error", description: "Failed to deny ticket", variant: "destructive" });
     } finally {
       setIsSubmittingDenial(false);
@@ -246,25 +274,33 @@ export function TicketDetail({
 
 
   const handlePriorityChange = async (newPriority: string) => {
+    const prevPriority = editPriority;
+    setEditPriority(newPriority as any);
     try {
       await onUpdateTicket({ priority: newPriority });
       toast({ title: "Priority updated" });
     } catch {
+      setEditPriority(prevPriority);
       toast({ title: "Error", description: "Failed to update priority", variant: "destructive" });
     }
   };
 
   const handleAssigneeChange = async (newAssigneeId: string) => {
+    const prevAssignee = editAssignee;
+    setEditAssignee(newAssigneeId);
     try {
       await onUpdateTicket({ assigneeId: newAssigneeId === UNASSIGNED ? null : newAssigneeId });
       toast({ title: "Assignee updated" });
     } catch {
+      setEditAssignee(prevAssignee);
       toast({ title: "Error", description: "Failed to update assignee", variant: "destructive" });
     }
   };
 
   const handleForwardChange = async (managerId: string) => {
     const target = managers.find((m) => m.userId === managerId);
+    const prevAssignee = editAssignee;
+    setEditAssignee(managerId);
     try {
       await onUpdateTicket({ assigneeId: managerId });
       toast({
@@ -272,16 +308,20 @@ export function TicketDetail({
         description: target ? `${ticket.ticketNumber} is now with ${target.name}.` : undefined,
       });
     } catch {
+      setEditAssignee(prevAssignee);
       toast({ title: "Error", description: "Failed to forward ticket", variant: "destructive" });
     }
   };
 
   const handleReopen = async () => {
+    const prevStatus = editStatus;
+    setEditStatus("open");
     setIsReopening(true);
     try {
       await onUpdateTicket({ status: "open" });
       toast({ title: "Ticket reopened" });
     } catch {
+      setEditStatus(prevStatus);
       toast({ title: "Error", description: "Failed to reopen ticket", variant: "destructive" });
     } finally {
       setIsReopening(false);

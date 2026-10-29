@@ -125,6 +125,11 @@ export function RoutingDashboardContent() {
 
   const toggleRuleStatus = async (rule: Rule) => {
     const next = rule.status === "active" ? "paused" : "active";
+    const previousRules = rules;
+    // Optimistic update of rule status and counters
+    setRules((prev) => prev.map((r) => (r._id === rule._id ? { ...r, status: next } : r)));
+    toast({ title: `Rule ${next === "active" ? "activated" : "paused"}` });
+
     try {
       const res = await fetch(`/api/routing/rules/${rule._id}`, {
         method: "PATCH",
@@ -132,9 +137,8 @@ export function RoutingDashboardContent() {
         body: JSON.stringify({ status: next }),
       });
       if (!res.ok) throw new Error();
-      toast({ title: `Rule ${next === "active" ? "activated" : "paused"}` });
-      fetchAll();
     } catch {
+      setRules(previousRules);
       toast({ title: "Failed to update rule status", variant: "destructive" });
     }
   };
@@ -145,15 +149,19 @@ export function RoutingDashboardContent() {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
+    const target = deleteTarget;
+    const previousRules = rules;
+    // Optimistically remove the rule and close confirmation immediately
+    setRules((prev) => prev.filter((r) => r._id !== target._id));
+    setDeleteTarget(null);
+    toast({ title: "Rule deleted" });
+
     try {
-      const res = await fetch(`/api/routing/rules/${deleteTarget._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/routing/rules/${target._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
-      toast({ title: "Rule deleted" });
-      fetchAll();
     } catch {
+      setRules(previousRules);
       toast({ title: "Failed to delete rule", variant: "destructive" });
-    } finally {
-      setDeleteTarget(null);
     }
   };
 

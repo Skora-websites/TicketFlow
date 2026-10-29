@@ -102,7 +102,18 @@ export function CategoriesContent() {
   // Who receives this category's tickets: the manager of the linked department
   // approves/assigns. Unlinked categories can be sent to any department.
   const handleOwnerChange = async (slug: string, departmentId: string | null) => {
-    setSavingSlug(slug);
+    const prevCategories = categories;
+    const linkedDept = departmentId ? { _id: departmentId, name: deptNameById.get(departmentId) || "Department" } : null;
+    setCategories((prev) =>
+      prev.map((c) => (c.slug === slug ? { ...c, departmentId: linkedDept } : c))
+    );
+
+    const label =
+      departmentId === null
+        ? "Category unlinked — its tickets can be sent to any department"
+        : `Category linked to ${deptNameById.get(departmentId) ?? "department"}`;
+    toast({ title: "Owning department updated", description: label });
+
     try {
       const res = await fetch(`/api/categories?slug=${encodeURIComponent(slug)}`, {
         method: "PATCH",
@@ -111,39 +122,35 @@ export function CategoriesContent() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to update category");
-      const label =
-        departmentId === null
-          ? "Category unlinked — its tickets can be sent to any department"
-          : `Category linked to ${deptNameById.get(departmentId) ?? "department"}`;
-      toast({ title: "Owning department updated", description: label });
-      load();
+      if (data.category) {
+        setCategories((prev) => prev.map((c) => (c.slug === slug ? data.category : c)));
+      }
     } catch (err) {
+      setCategories(prevCategories);
       toast({
         title: "Update failed",
         description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive",
       });
-    } finally {
-      setSavingSlug(null);
     }
   };
 
   const handleDelete = async (slug: string) => {
-    setDeletingSlug(slug);
+    const prevCategories = categories;
+    setCategories((prev) => prev.filter((c) => c.slug !== slug));
+    toast({ title: "Category deleted" });
+
     try {
       const res = await fetch(`/api/categories?slug=${encodeURIComponent(slug)}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete");
-      toast({ title: "Category deleted" });
-      load();
     } catch (err) {
+      setCategories(prevCategories);
       toast({
         title: "Delete failed",
         description: err instanceof Error ? err.message : "Unknown error",
         variant: "destructive",
       });
-    } finally {
-      setDeletingSlug(null);
     }
   };
 

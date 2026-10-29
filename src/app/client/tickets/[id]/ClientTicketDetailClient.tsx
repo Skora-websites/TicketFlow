@@ -7,7 +7,7 @@ import type { ChatParticipant } from "@/components/tickets/ConversationPanel";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { ArrowLeft, AlertTriangle, TicketCheck } from "lucide-react";
+import { ArrowLeft, AlertTriangle, TicketCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
 import type { ITicket, IComment, IUser } from "@/lib/db/models";
 
@@ -35,7 +35,7 @@ export function ClientTicketDetailPage() {
       ]);
 
       if (!ticketRes.ok) {
-        if (ticketRes.status === 404) throw new Error("Ticket not found");
+        if (ticketRes.status === 404) throw new Error("This ticket no longer exists");
         throw new Error("Failed to fetch ticket");
       }
 
@@ -67,14 +67,27 @@ export function ClientTicketDetailPage() {
   }, [loadData]);
 
   const handleUpdateTicket = async (updates: Record<string, unknown>) => {
-    const res = await fetch(`/api/tickets/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
-    });
-    if (!res.ok) throw new Error("Failed to update ticket");
-    const data = await res.json();
-    setTicket(data.ticket);
+    const previousTicket = ticket;
+    setTicket((prev) => (prev ? ({ ...prev, ...updates } as typeof ticket) : null));
+
+    try {
+      const res = await fetch(`/api/tickets/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update ticket");
+      }
+      const data = await res.json();
+      if (data.ticket) {
+        setTicket(data.ticket);
+      }
+    } catch (err) {
+      setTicket(previousTicket);
+      throw err;
+    }
   };
 
   const handleAddComment = async (body: string, attachment?: File, _visibility?: "public" | "internal") => {
@@ -224,6 +237,25 @@ export function ClientTicketDetailPage() {
     );
   }
 
+  if (error === "This ticket no longer exists" || (!ticket && !isLoading)) {
+    return (
+      <div className="text-center py-12 space-y-4">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground mx-auto">
+          <Trash2 className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">This ticket no longer exists</h2>
+          <p className="text-sm text-muted-foreground mt-1">This ticket has been permanently removed or does not exist.</p>
+        </div>
+        <div>
+          <Link href="/client/tickets">
+            <Button variant="outline">Back to Tickets</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="text-center py-12">
@@ -259,7 +291,7 @@ export function ClientTicketDetailPage() {
         Back to tickets
       </Link>
       <TicketDetail
-        ticket={ticket}
+        ticket={ticket as any}
         comments={comments}
         chatParticipants={chatParticipants}
         currentUser={currentUser}
