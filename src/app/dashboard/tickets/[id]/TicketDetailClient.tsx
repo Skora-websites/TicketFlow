@@ -11,6 +11,7 @@ import {
   ArrowLeft,
   AlertTriangle,
   TicketCheck,
+  Trash2,
 } from "lucide-react";
 import Link from "next/link";
 import type { ITicket, IComment, IUser } from "@/lib/db/models";
@@ -29,6 +30,7 @@ export function TicketDetailPage() {
   const [chatParticipants, setChatParticipants] = useState<ChatParticipant[]>([]);
   const [currentUser, setCurrentUser] = useState<{ id: string; role: string; departmentId?: string } | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDeleted, setIsDeleted] = useState(false);
   const [error, setError] = useState("");
   // Live SSE: bump counter on every push so children refresh receipts; the
   // EventSource ref lets tests/HMR tear it down cleanly.
@@ -44,7 +46,7 @@ export function TicketDetailPage() {
       ]);
 
       if (!ticketRes.ok) {
-        if (ticketRes.status === 404) throw new Error("Ticket not found");
+        if (ticketRes.status === 404) throw new Error("This ticket no longer exists");
         throw new Error("Failed to fetch ticket");
       }
 
@@ -76,14 +78,36 @@ export function TicketDetailPage() {
   }, [loadData]);
 
   const handleUpdateTicket = async (updates: Partial<ITicket>) => {
-    const res = await fetch(`/api/tickets/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(updates),
+    const previousTicket = ticket;
+    // Optimistic overlay applied immediately to local state
+    setTicket((prev) => {
+      if (!prev) return null;
+      const next = { ...prev, ...updates };
+      if (updates.assigneeId === null) {
+        next.assigneeId = undefined;
+      }
+      return next as typeof ticket;
     });
-    if (!res.ok) throw new Error("Failed to update ticket");
-    const data = await res.json();
-    setTicket(data.ticket);
+
+    try {
+      const res = await fetch(`/api/tickets/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update ticket");
+      }
+      const data = await res.json();
+      if (data.ticket) {
+        setTicket(data.ticket);
+      }
+    } catch (err) {
+      // Roll back to previous state on failure
+      setTicket(previousTicket);
+      throw err;
+    }
   };
 
   const handleAddComment = async (body: string, attachment?: File, visibility?: "public" | "internal") => {
@@ -282,9 +306,19 @@ export function TicketDetailPage() {
 
   const handleDeleteTicket = async () => {
     // Confirmation is handled by TicketDetail before this is invoked.
-    const res = await fetch(`/api/tickets/${id}`, { method: "DELETE" });
-    if (!res.ok) throw new Error("Failed to delete ticket");
-    router.push("/dashboard/tickets");
+    // Optimistically update UI immediately so the page displays the removed state at once
+    setIsDeleted(true);
+    try {
+      const res = await fetch(`/api/tickets/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to delete ticket");
+      }
+      window.dispatchEvent(new CustomEvent("ticketflow:ticket-deleted", { detail: { id } }));
+    } catch (err) {
+      setIsDeleted(false);
+      throw err;
+    }
   };
 
   if (isLoading) {
@@ -428,6 +462,25 @@ export function TicketDetailPage() {
     );
   }
 
+  if (isDeleted || error === "This ticket no longer exists" || (!ticket && !isLoading)) {
+    return (
+      <div className="text-center py-12 space-y-4">
+        <div className="inline-flex h-12 w-12 items-center justify-center rounded-full bg-muted/60 text-muted-foreground mx-auto">
+          <Trash2 className="w-6 h-6 text-muted-foreground" />
+        </div>
+        <div>
+          <h2 className="text-xl font-semibold">This ticket no longer exists</h2>
+          <p className="text-sm text-muted-foreground mt-1">This ticket has been permanently removed or does not exist.</p>
+        </div>
+        <div>
+          <Link href="/dashboard/tickets">
+            <Button variant="outline">Back to Tickets</Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (error) {
     return (
       <div className="text-center py-12">
@@ -463,7 +516,7 @@ export function TicketDetailPage() {
         Back to tickets
       </Link>
       <TicketDetail
-        ticket={ticket}
+        ticket={ticket as any}
         comments={comments}
         chatParticipants={chatParticipants}
         currentUser={currentUser}

@@ -3,7 +3,7 @@ import { connectDB } from "@/lib/db/mongo";
 import { Ticket, Comment, User, Notification, Category } from "@/lib/db/models";
 import { requireApiRole, getUser, canAccessTicket, canTransitionStatus } from "@/lib/authz";
 import { publishTicketEvent } from "@/lib/events";
-import { canSetPriority, toTransferRef } from "@/lib/transfer";
+import { canSetPriority, toTransferRef, isReceivingManager } from "@/lib/transfer";
 import { z } from "zod";
 import mongoose from "mongoose";
 import { notify } from "@/lib/notifications";
@@ -468,11 +468,39 @@ export async function DELETE(
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
     }
 
-    // Managers may only delete tickets within their own department. Both IDs
-    // must be present and equal, so a dept-less manager can never delete.
+    // A ticket should only be deleted by manager of the receiving agent or the superadmin, noone else
     if (user.role === "manager") {
-      if (!user.departmentId || ticket.departmentId?.toString() !== user.departmentId) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      let isAllowed = false;
+      const deptIdStr = user.departmentId?.toString();
+
+      // Check if user is the receiving manager of a pending transfer
+      const tRef = toTransferRef(ticket.transfer as any);
+      if (isReceivingManager({ id: user.id, role: user.role, departmentId: deptIdStr }, tRef)) {
+        isAllowed = true;
+      }
+
+      // Check if ticket's assigned agent reports to this manager or belongs to manager's department
+      if (!isAllowed && ticket.assigneeId) {
+        const assignee = await User.findById(ticket.assigneeId).select("departmentId reportingManagerId").lean();
+        if (assignee) {
+          if (assignee.reportingManagerId && assignee.reportingManagerId.toString() === user.id) {
+            isAllowed = true;
+          } else if (deptIdStr && assignee.departmentId?.toString() === deptIdStr) {
+            isAllowed = true;
+          }
+        }
+      }
+
+      // If no assigned agent, check if the ticket belongs to the manager's receiving department
+      if (!isAllowed && deptIdStr && ticket.departmentId?.toString() === deptIdStr) {
+        isAllowed = true;
+      }
+
+      if (!isAllowed) {
+        return NextResponse.json(
+          { error: "Forbidden: only the manager of the receiving agent or superadmin can delete this ticket" },
+          { status: 403 }
+        );
       }
     }
 

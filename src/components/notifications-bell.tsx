@@ -55,33 +55,72 @@ export function NotificationsBell() {
     run();
     const interval = setInterval(run, 30000);
     window.addEventListener("focus", run);
+
+    // Sync with notifications page mutations
+    const onReadAll = () => {
+      setNotif((n) => ({ ...n, unreadCount: 0, items: n.items.map((i) => ({ ...i, read: true })) }));
+    };
+    const onReadSingle = (e: Event) => {
+      const targetId = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (targetId) {
+        setNotif((n) => ({
+          ...n,
+          unreadCount: Math.max(0, n.unreadCount - (n.items.find((i) => i.id === targetId && !i.read) ? 1 : 0)),
+          items: n.items.map((i) => (i.id === targetId ? { ...i, read: true } : i)),
+        }));
+      }
+    };
+    const onRemoved = (e: Event) => {
+      const targetId = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (targetId) {
+        setNotif((n) => ({
+          ...n,
+          unreadCount: Math.max(0, n.unreadCount - (n.items.find((i) => i.id === targetId && !i.read) ? 1 : 0)),
+          items: n.items.filter((i) => i.id !== targetId),
+        }));
+      }
+    };
+
+    window.addEventListener("ticketflow:notifications-read-all", onReadAll);
+    window.addEventListener("ticketflow:notification-read", onReadSingle);
+    window.addEventListener("ticketflow:notification-removed", onRemoved);
+
     return () => {
       active = false;
       clearInterval(interval);
       window.removeEventListener("focus", run);
+      window.removeEventListener("ticketflow:notifications-read-all", onReadAll);
+      window.removeEventListener("ticketflow:notification-read", onReadSingle);
+      window.removeEventListener("ticketflow:notification-removed", onRemoved);
     };
   }, []);
 
   const markAllRead = async () => {
+    const prev = notif;
+    setNotif((n) => ({ ...n, unreadCount: 0, items: n.items.map((i) => ({ ...i, read: true })) }));
+    window.dispatchEvent(new CustomEvent("ticketflow:notifications-read-all"));
     try {
-      await fetch("/api/notifications/read-all", { method: "POST" });
-      setNotif((n) => ({ ...n, unreadCount: 0, items: n.items.map((i) => ({ ...i, read: true })) }));
+      const res = await fetch("/api/notifications/read-all", { method: "POST" });
+      if (!res.ok) throw new Error();
     } catch {
-      /* ignore */
+      setNotif(prev);
     }
   };
 
   const markRead = async (id: string) => {
-    try {
-      await fetch(`/api/notifications/${id}`, { method: "PATCH" });
-    } catch {
-      /* ignore */
-    }
+    const prev = notif;
     setNotif((n) => ({
       ...n,
-      unreadCount: Math.max(0, n.unreadCount - 1),
+      unreadCount: Math.max(0, n.unreadCount - (n.items.find((i) => i.id === id && !i.read) ? 1 : 0)),
       items: n.items.map((i) => (i.id === id ? { ...i, read: true } : i)),
     }));
+    window.dispatchEvent(new CustomEvent("ticketflow:notification-read", { detail: { id } }));
+    try {
+      const res = await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+      if (!res.ok) throw new Error();
+    } catch {
+      setNotif(prev);
+    }
   };
 
   const ticketBaseHref = user?.role === "client" ? "/client/tickets/" : "/dashboard/tickets/";

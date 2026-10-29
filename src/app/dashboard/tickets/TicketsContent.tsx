@@ -143,6 +143,20 @@ export function TicketsContent() {
     };
   }, [page, limit, view, status, priority, category, search, refreshKey]);
 
+  // Keep ticket list synchronized when a ticket is deleted in detail view
+  useEffect(() => {
+    const onTicketDeleted = (e: Event) => {
+      const customEvent = e as CustomEvent<{ id: string }>;
+      const deletedId = customEvent.detail?.id;
+      if (deletedId) {
+        setTickets((prev) => prev.filter((t) => t._id !== deletedId));
+        setPagination((prev) => ({ ...prev, total: Math.max(0, prev.total - 1) }));
+      }
+    };
+    window.addEventListener("ticketflow:ticket-deleted", onTicketDeleted);
+    return () => window.removeEventListener("ticketflow:ticket-deleted", onTicketDeleted);
+  }, []);
+
   const handleFilterChange = (key: "status" | "priority" | "category", value: string) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
     setPagination((prev) => ({ ...prev, page: 1 }));

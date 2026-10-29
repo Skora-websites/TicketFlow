@@ -82,9 +82,22 @@ export function DepartmentsContent() {
 
   const handleSubmit = async (data: DeptFormData) => {
     setIsSubmitting(true);
+    const prevDepartments = departments;
+    const isEdit = !!editingDept;
+    const editId = editingDept?._id?.toString();
+
+    // Optimistically update if editing
+    if (isEdit && editId) {
+      setDepartments((prev) =>
+        prev.map((d) => (d._id.toString() === editId ? ({ ...d, ...data } as IDepartment) : d))
+      );
+      setIsDialogOpen(false);
+      setEditingDept(null);
+    }
+
     try {
-      const url = editingDept ? `/api/departments/${editingDept._id}` : "/api/departments";
-      const method = editingDept ? "PATCH" : "POST";
+      const url = isEdit ? `/api/departments/${editId}` : "/api/departments";
+      const method = isEdit ? "PATCH" : "POST";
 
       const res = await fetch(url, {
         method,
@@ -97,14 +110,22 @@ export function DepartmentsContent() {
         throw new Error(error.error || "Failed to save department");
       }
 
-      toast({ title: editingDept ? "Department updated" : "Department created" });
-      setIsDialogOpen(false);
-      setEditingDept(null);
-
-      const res2 = await fetch("/api/departments?limit=100");
-      const data2 = await res2.json();
-      setDepartments(data2.departments);
+      const resData = await res.json().catch(() => ({}));
+      toast({ title: isEdit ? "Department updated" : "Department created" });
+      if (!isEdit) {
+        setIsDialogOpen(false);
+        if (resData.department) {
+          setDepartments((prev) => [...prev, resData.department]);
+        } else {
+          const res2 = await fetch("/api/departments?limit=100");
+          const data2 = await res2.json();
+          setDepartments(data2.departments);
+        }
+      }
     } catch (err) {
+      if (isEdit) {
+        setDepartments(prevDepartments);
+      }
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save department", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
@@ -117,18 +138,22 @@ export function DepartmentsContent() {
 
   const confirmDelete = async () => {
     if (!deleteTarget) return;
+    const target = deleteTarget;
+    const prevDepartments = departments;
+    // Optimistically remove and close confirmation modal immediately
+    setDepartments((prev) => prev.filter((d) => d._id.toString() !== target._id.toString()));
+    setDeleteTarget(null);
+    toast({ title: "Department deleted" });
+
     try {
-      const res = await fetch(`/api/departments/${deleteTarget._id}`, { method: "DELETE" });
+      const res = await fetch(`/api/departments/${target._id}`, { method: "DELETE" });
       if (!res.ok) {
         const error = await res.json();
         throw new Error(error.error || "Failed to delete department");
       }
-      toast({ title: "Department deleted" });
-      setDepartments((prev) => prev.filter((d) => d._id.toString() !== deleteTarget._id.toString()));
     } catch (err) {
+      setDepartments(prevDepartments);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete department", variant: "destructive" });
-    } finally {
-      setDeleteTarget(null);
     }
   };
 

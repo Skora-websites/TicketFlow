@@ -34,6 +34,8 @@ export function CommentThread({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [optimisticEdits, setOptimisticEdits] = useState<Map<string, string>>(new Map());
+  const [optimisticDeletes, setOptimisticDeletes] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const startEdit = (comment: CommentModel) => {
@@ -51,8 +53,13 @@ export function CommentThread({
   const saveEdit = async (comment: CommentModel) => {
     const content = editText.trim();
     if (!content) return;
-    setSavingEdit(true);
+    const commentId = comment._id.toString();
+
+    // Optimistically update comment text and exit edit mode immediately
+    setOptimisticEdits((prev) => new Map(prev).set(commentId, content));
+    cancelEdit();
     setEditError("");
+
     try {
       const res = await fetch(
         `/api/tickets/${comment.ticketId}/comments/${comment._id}`,
@@ -66,12 +73,15 @@ export function CommentThread({
         const err = await res.json().catch(() => ({}));
         throw new Error(err.error || "Failed to update comment");
       }
-      cancelEdit();
       onCommentsChanged?.();
     } catch (error) {
+      // Roll back optimistic edit on failure
+      setOptimisticEdits((prev) => {
+        const next = new Map(prev);
+        next.delete(commentId);
+        return next;
+      });
       setEditError(error instanceof Error ? error.message : "Failed to update comment");
-    } finally {
-      setSavingEdit(false);
     }
   };
 
@@ -82,7 +92,9 @@ export function CommentThread({
       return;
     }
     setConfirmDeleteId(null);
-    setDeletingId(commentId);
+    // Optimistically hide comment immediately
+    setOptimisticDeletes((prev) => new Set(prev).add(commentId));
+
     try {
       const res = await fetch(
         `/api/tickets/${comment.ticketId}/comments/${comment._id}`,
@@ -94,9 +106,13 @@ export function CommentThread({
       }
       onCommentsChanged?.();
     } catch (error) {
+      // Roll back optimistic delete on failure
+      setOptimisticDeletes((prev) => {
+        const next = new Set(prev);
+        next.delete(commentId);
+        return next;
+      });
       console.error("Failed to delete comment:", error);
-    } finally {
-      setDeletingId(null);
     }
   };
 
@@ -162,13 +178,21 @@ export function CommentThread({
 
   const displayComments = useMemo(() => {
     const seen = new Set<string>();
-    return comments.filter((c) => {
-      const id = c?._id?.toString();
-      if (!id || seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
-  }, [comments]);
+    return comments
+      .filter((c) => {
+        const id = c?._id?.toString();
+        if (!id || seen.has(id) || optimisticDeletes.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((c) => {
+        const id = c._id.toString();
+        const patchedBody = optimisticEdits.get(id);
+        return patchedBody !== undefined
+          ? ({ ...c, body: patchedBody, updatedAt: new Date() } as unknown as (CommentModel & { authorId?: UserType }))
+          : c;
+      });
+  }, [comments, optimisticEdits, optimisticDeletes]);
 
   return (
     <div className="space-y-4">
