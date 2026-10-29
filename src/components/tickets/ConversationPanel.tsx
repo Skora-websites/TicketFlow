@@ -76,6 +76,8 @@ export function ConversationPanel({
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [formError, setFormError] = useState("");
+  const [optimisticEdits, setOptimisticEdits] = useState<Map<string, string>>(new Map());
+  const [optimisticDeletes, setOptimisticDeletes] = useState<Set<string>>(new Set());
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -217,8 +219,13 @@ export function ConversationPanel({
   const saveEdit = async (comment: CommentModel) => {
     const content = editText.trim();
     if (!content) return;
-    setSavingEdit(true);
+    const commentId = comment._id.toString();
+
+    // Optimistically update comment body and exit edit mode immediately
+    setOptimisticEdits((prev) => new Map(prev).set(commentId, content));
+    cancelEdit();
     setEditError("");
+
     try {
       const res = await fetch(`/api/tickets/${comment.ticketId}/comments/${comment._id}`, {
         method: "PATCH",
@@ -229,9 +236,13 @@ export function ConversationPanel({
         const err = await res.json().catch(() => ({}));
         throw new Error((err as { error?: string }).error || "Failed to update message");
       }
-      cancelEdit();
       onCommentsChanged?.();
     } catch (error) {
+      setOptimisticEdits((prev) => {
+        const next = new Map(prev);
+        next.delete(commentId);
+        return next;
+      });
       setEditError(error instanceof Error ? error.message : "Failed to update message");
     } finally {
       setSavingEdit(false);
@@ -245,12 +256,19 @@ export function ConversationPanel({
       return;
     }
     setConfirmDeleteId(null);
-    setDeletingId(commentId);
+    // Optimistically hide comment immediately
+    setOptimisticDeletes((prev) => new Set(prev).add(commentId));
+
     try {
       const res = await fetch(`/api/tickets/${comment.ticketId}/comments/${comment._id}`, { method: "DELETE" });
       if (!res.ok) throw new Error("Failed to delete message");
       onCommentsChanged?.();
     } catch (error) {
+      setOptimisticDeletes((prev) => {
+        const next = new Set(prev);
+        next.delete(commentId);
+        return next;
+      });
       console.error("Failed to delete message:", error);
     } finally {
       setDeletingId(null);
@@ -266,13 +284,21 @@ export function ConversationPanel({
   // Deduplicate comments defensively to guarantee unique keys and prevent duplicate bubble rendering
   const displayComments = useMemo(() => {
     const seen = new Set<string>();
-    return comments.filter((c) => {
-      const id = c?._id?.toString();
-      if (!id || seen.has(id)) return false;
-      seen.add(id);
-      return true;
-    });
-  }, [comments]);
+    return comments
+      .filter((c) => {
+        const id = c?._id?.toString();
+        if (!id || seen.has(id) || optimisticDeletes.has(id)) return false;
+        seen.add(id);
+        return true;
+      })
+      .map((c) => {
+        const id = c._id.toString();
+        const patchedBody = optimisticEdits.get(id);
+        return patchedBody !== undefined
+          ? ({ ...c, body: patchedBody, updatedAt: new Date() } as unknown as CommentModel)
+          : c;
+      });
+  }, [comments, optimisticEdits, optimisticDeletes]);
 
   // Filter out any pending optimistic message that is already in displayComments
   const pendingToDisplay = useMemo(() => {
@@ -353,7 +379,7 @@ export function ConversationPanel({
         )}
 
         {displayComments.map((comment) => {
-          const author = comment.authorId as UserType | undefined;
+          const author = comment.authorId as unknown as UserType | undefined;
           const isOwn = author?._id?.toString() === currentUserId;
           const isSystem = (comment as { kind?: string }).kind === "system";
           const isInternal = (comment as { visibility?: string }).visibility === "internal";

@@ -75,8 +75,8 @@ export function RoutingDashboardContent() {
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Rule | null>(null);
 
-  const fetchAll = async () => {
-    setLoading(true);
+  const fetchAll = async (silent = false) => {
+    if (!silent) setLoading(true);
     setError("");
     try {
       const [rulesRes, agentsRes] = await Promise.all([
@@ -90,9 +90,9 @@ export function RoutingDashboardContent() {
       setUsers(agentsData.agents ?? []);
       setDepartments(agentsData.departments ?? []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load routing data");
+      if (!silent) setError(err instanceof Error ? err.message : "Failed to load routing data");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   };
 
@@ -227,7 +227,7 @@ export function RoutingDashboardContent() {
         <div className="text-center">
           <Zap className="mx-auto mb-3 h-10 w-10 text-destructive" aria-hidden />
           <p className="font-medium">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={fetchAll}>
+          <Button variant="outline" className="mt-4" onClick={() => fetchAll()}>
             Retry
           </Button>
         </div>
@@ -384,19 +384,19 @@ export function RoutingDashboardContent() {
               <p className="text-sm text-muted-foreground">
                 Toggle status, tune capacity, and tag skills. Routing uses these signals in real time.
               </p>
-              <Button variant="outline" size="sm" onClick={fetchAll} className="ml-auto">
+              <Button variant="outline" size="sm" onClick={() => fetchAll()} className="ml-auto">
                 Refresh
               </Button>
             </CardContent>
           </Card>
-          <AgentCapacityBoard agents={users} onChange={fetchAll} />
+          <AgentCapacityBoard agents={users} onChange={() => fetchAll(true)} />
         </TabsContent>
       </Tabs>
 
       <RuleBuilder
         open={builderOpen}
         onClose={() => setBuilderOpen(false)}
-        onSaved={fetchAll}
+        onSaved={() => fetchAll(true)}
         ruleId={editingRule?._id}
         departments={departments}
         users={users}

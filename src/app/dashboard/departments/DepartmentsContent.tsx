@@ -86,13 +86,25 @@ export function DepartmentsContent() {
     const isEdit = !!editingDept;
     const editId = editingDept?._id?.toString();
 
-    // Optimistically update if editing
+    const tempId = `temp-${Date.now()}`;
+    // Optimistically update if editing or creating
     if (isEdit && editId) {
       setDepartments((prev) =>
         prev.map((d) => (d._id.toString() === editId ? ({ ...d, ...data } as IDepartment) : d))
       );
       setIsDialogOpen(false);
       setEditingDept(null);
+    } else if (!isEdit) {
+      const tempDept = {
+        _id: tempId,
+        name: data.name,
+        color: data.color,
+        description: data.description,
+        memberCount: 0,
+        createdAt: new Date().toISOString(),
+      } as unknown as IDepartment;
+      setDepartments((prev) => [...prev, tempDept]);
+      setIsDialogOpen(false);
     }
 
     try {
@@ -112,20 +124,13 @@ export function DepartmentsContent() {
 
       const resData = await res.json().catch(() => ({}));
       toast({ title: isEdit ? "Department updated" : "Department created" });
-      if (!isEdit) {
-        setIsDialogOpen(false);
-        if (resData.department) {
-          setDepartments((prev) => [...prev, resData.department]);
-        } else {
-          const res2 = await fetch("/api/departments?limit=100");
-          const data2 = await res2.json();
-          setDepartments(data2.departments);
-        }
+      if (!isEdit && resData.department) {
+        setDepartments((prev) =>
+          prev.map((d) => (d._id.toString() === tempId ? resData.department : d))
+        );
       }
     } catch (err) {
-      if (isEdit) {
-        setDepartments(prevDepartments);
-      }
+      setDepartments(prevDepartments);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save department", variant: "destructive" });
     } finally {
       setIsSubmitting(false);

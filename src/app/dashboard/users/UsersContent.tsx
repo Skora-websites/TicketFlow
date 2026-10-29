@@ -194,6 +194,35 @@ export function UsersContent() {
 
   const handleSubmit = async (data: UserFormData) => {
     setIsSubmitting(true);
+    const isEdit = !!editingUser;
+    const prevUsers = users;
+
+    if (isEdit && editingUser) {
+      const selectedDept = departments.find((d) => d._id?.toString() === data.departmentId);
+      setUsers((prev) =>
+        prev.map((u) =>
+          u._id === editingUser._id
+            ? ({
+                ...u,
+                name: data.name,
+                email: data.email,
+                role: data.role,
+                departmentId: selectedDept
+                  ? { _id: selectedDept._id, name: selectedDept.name, color: selectedDept.color }
+                  : undefined,
+                ticketAccess: data.ticketAccess,
+                reportingManagerId:
+                  data.reportingManagerId && data.reportingManagerId !== "none"
+                    ? data.reportingManagerId
+                    : undefined,
+              } as UserWithDept)
+            : u
+        )
+      );
+      setIsDialogOpen(false);
+      setEditingUser(null);
+    }
+
     try {
       const url = editingUser ? `/api/users/${editingUser._id}` : "/api/users";
       const method = editingUser ? "PATCH" : "POST";
@@ -227,8 +256,8 @@ export function UsersContent() {
 
       const result = await res.json();
       toast({
-        title: editingUser ? "User updated" : "User created",
-        description: editingUser
+        title: isEdit ? "User updated" : "User created",
+        description: isEdit
           ? "Changes have been saved"
           : result.devCredentials
             ? "SMTP not configured — credentials shown once below (dev mode)"
@@ -240,15 +269,21 @@ export function UsersContent() {
           description: `${result.devCredentials.email} / ${result.devCredentials.password}`,
         });
       }
-      setIsDialogOpen(false);
-      setEditingUser(null);
 
-      // Refresh
-      const res2 = await fetch(`/api/users?page=${pagination.page}&limit=${pagination.limit}`);
-      const data2 = await res2.json();
-      setUsers(data2.users);
-      setPagination(data2.pagination);
+      if (!isEdit) {
+        setIsDialogOpen(false);
+        setEditingUser(null);
+        if (result.user) {
+          setUsers((prev) => [result.user, ...prev]);
+          setPagination((prev) => ({ ...prev, total: prev.total + 1 }));
+        }
+      } else if (result.user) {
+        setUsers((prev) => prev.map((u) => (u._id === result.user._id ? result.user : u)));
+      }
     } catch (err) {
+      if (isEdit) {
+        setUsers(prevUsers);
+      }
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save user", variant: "destructive" });
     } finally {
       setIsSubmitting(false);

@@ -111,6 +111,22 @@ export function TicketDetailPage() {
   };
 
   const handleAddComment = async (body: string, attachment?: File, visibility?: "public" | "internal") => {
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const tempComment = {
+      _id: tempId,
+      ticketId: id,
+      body,
+      visibility: visibility || "public",
+      kind: "message",
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      authorId: currentUser ? { _id: currentUser.id, name: "You", role: currentUser.role } : undefined,
+    } as any;
+
+    if (!attachment) {
+      setComments((prev) => [...prev, tempComment]);
+    }
+
     const formData = new FormData();
     formData.append("body", body);
     if (attachment) {
@@ -119,23 +135,35 @@ export function TicketDetailPage() {
     if (visibility) {
       formData.append("visibility", visibility);
     }
-    const res = await fetch(`/api/tickets/${id}/comments`, {
-      method: "POST",
-      body: formData,
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.error || "Failed to send message");
-    }
-    const data = await res.json();
-    if (data.comment) {
-      setComments((prev) => {
-        const idStr = data.comment._id?.toString();
-        if (idStr && prev.some((c) => c._id?.toString() === idStr)) {
-          return prev;
-        }
-        return [...prev, data.comment];
+
+    try {
+      const res = await fetch(`/api/tickets/${id}/comments`, {
+        method: "POST",
+        body: formData,
       });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to send message");
+      }
+      const data = await res.json();
+      if (data.comment) {
+        setComments((prev) => {
+          const idStr = data.comment._id?.toString();
+          const hasTemp = prev.some((c) => c._id?.toString() === tempId);
+          if (hasTemp) {
+            return prev.map((c) => (c._id?.toString() === tempId ? data.comment : c));
+          }
+          if (idStr && prev.some((c) => c._id?.toString() === idStr)) {
+            return prev;
+          }
+          return [...prev, data.comment];
+        });
+      }
+    } catch (err) {
+      if (!attachment) {
+        setComments((prev) => prev.filter((c) => c._id?.toString() !== tempId));
+      }
+      throw err;
     }
   };
 
