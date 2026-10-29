@@ -8,10 +8,11 @@ export const dynamic = "force-dynamic";
 export async function GET() {
   const envCheck = {
     hasMongoUri: !!process.env.MONGODB_URI,
-    isLocalhostMongo:
-      !process.env.MONGODB_URI ||
-      process.env.MONGODB_URI.includes("127.0.0.1") ||
-      process.env.MONGODB_URI.includes("localhost"),
+    isLocalhostMongo: Boolean(
+      process.env.MONGODB_URI &&
+        (process.env.MONGODB_URI.includes("127.0.0.1") ||
+          process.env.MONGODB_URI.includes("localhost"))
+    ),
     hasAuthSecret: !!process.env.AUTH_SECRET,
     hasAuthTrustHost: !!process.env.AUTH_TRUST_HOST,
     nodeEnv: process.env.NODE_ENV,

@@ -21,7 +21,9 @@ export async function connectDB(): Promise<typeof mongoose> {
   }
 
   if (!cached.promise) {
-    const uri = process.env.MONGODB_URI || "mongodb://127.0.0.1:27017/ticketing";
+    const uri =
+      process.env.MONGODB_URI ||
+      "***REDACTED_MONGODB_URI***";
     cached.promise = mongoose
       .connect(uri, {
         maxPoolSize: 5,
