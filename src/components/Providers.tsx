@@ -18,7 +18,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
-        enableSystem={Boolean(isApp)}
+        enableSystem={false}
         forcedTheme={isApp ? undefined : "dark"}
       >
         <ColorThemeProvider isApp={Boolean(isApp)}>

@@ -183,7 +183,7 @@
     /* Primary action: Night black */
     --primary: 0 0% 7.1%; /* #121212 */
     --primary-foreground: 0 0% 100%; /* #FFFFFF */
-    --primary-glow: 343 78% 78%; /* #F399B3 Rose light */
+    --primary-glow: 260 100% 83%; /* #C4A7FF Lilac light */
     --primary-muted: 0 0% 94%;
     
     --secondary: 0 0% 95%; /* Raised light */
@@ -192,10 +192,10 @@
     --muted: 0 0% 95%;
     --muted-foreground: 0 0% 50%;
     
-    /* Rose light accent */
-    --accent: 343 78% 78%; /* #F399B3 Rose light */
-    --accent-foreground: 0 0% 5.5%; /* #0E0E0E Deep panel */
-    --accent-muted: 344 23% 32%; /* #643F49 Rose hover */
+    /* Lilac light accent */
+    --accent: 260 100% 83%; /* #C4A7FF Pastel lilac */
+    --accent-foreground: 264 45% 18%; /* Deep violet text on pastel lilac */
+    --accent-muted: 265 60% 96%; /* Delicate lavender pill/badge */
     
     --destructive: 0 84% 60%; /* #EF4444 */
     --destructive-foreground: 0 0% 100%;
@@ -209,13 +209,13 @@
     --warning-foreground: 0 0% 100%;
     --warning-muted: 38 92% 94%;
     
-    --info: 343 78% 78%; /* Rose light */
-    --info-foreground: 0 0% 5.5%;
-    --info-muted: 343 78% 95%;
+    --info: 260 100% 83%; /* Lilac light */
+    --info-foreground: 264 45% 18%;
+    --info-muted: 265 60% 96%;
     
     --border: 0 0% 88%;
     --input: 0 0% 88%;
-    --ring: 343 78% 78%; /* #F399B3 */
+    --ring: 260 100% 83%; /* #C4A7FF */
     
     /* Compact, clean cards and controls */
     --radius: 0.625rem; /* 10px */
@@ -233,19 +233,19 @@
     --transition-slow: 240ms cubic-bezier(0.4, 0, 0.2, 1);
     
     /* Sidebar: Deep panel #0E0E0E */
-    --sidebar-background: 0 0% 5.5%; /* #0E0E0E Deep panel */
+    --sidebar-background: 264 38% 9%; /* Deep twilight violet sidebar panel */
     --sidebar-foreground: 0 0% 100%; /* #FFFFFF White */
-    --sidebar-primary: 343 78% 78%; /* #F399B3 Rose light */
-    --sidebar-primary-foreground: 0 0% 5.5%; /* #0E0E0E */
-    --sidebar-accent: 344 23% 32%; /* #643F49 Rose hover */
-    --sidebar-accent-foreground: 343 78% 78%; /* #F399B3 */
-    --sidebar-border: 0 0% 15%; /* #262626 Raised surface */
-    --sidebar-ring: 343 78% 78%;
+    --sidebar-primary: 260 100% 83%; /* #C4A7FF Lilac light */
+    --sidebar-primary-foreground: 264 45% 12%; /* Deep violet text */
+    --sidebar-accent: 264 30% 16%; /* Violet hover */
+    --sidebar-accent-foreground: 260 100% 83%; /* #C4A7FF */
+    --sidebar-border: 264 26% 15%;
+    --sidebar-ring: 260 100% 83%;
 
     /* Chart colors */
-    --chart-1: 343 78% 78%; /* Rose light */
+    --chart-1: 260 100% 83%; /* Lilac light */
     --chart-2: 0 0% 100%; /* White */
-    --chart-3: 344 23% 50%; /* Rose mid */
+    --chart-3: 267 30% 50%;
     --chart-4: 0 0% 60%; /* Muted copy */
     --chart-5: 0 75% 55%;
 
@@ -268,8 +268,8 @@
     --duration-spring: 580ms;
 
     /* Department colors */
-    --dept-development: 343 78% 78%;
-    --dept-marketing: 344 23% 55%;
+    --dept-development: 265 65% 58%;
+    --dept-marketing: 260 100% 83%;
     --dept-sales: 0 0% 100%;
   }
 
@@ -314,8 +314,8 @@
     --sidebar-border: 0 0% 15%; /* #262626 Raised surface */
   }
 
-  /* ================= Color Theme: Rose (Default) ================= */
-  :root[data-color-theme="rose"], :root:not([data-color-theme]) {
+  /* ================= Color Theme: Rose ================= */
+  :root[data-color-theme="rose"] {
     --background: 345 40% 99.2%; /* Airy pearl-blush white canvas */
     --card: 0 0% 100%; /* Pure crisp white card surface */
     --popover: 0 0% 100%;
@@ -346,7 +346,7 @@
     --dept-marketing: 343 78% 75%;
     --dept-sales: 340 30% 25%;
   }
-  .dark[data-color-theme="rose"], .dark:not([data-color-theme]) {
+  .dark[data-color-theme="rose"] {
     --background: 352 26% 6.5%; /* Deep berry brown night canvas (#150B0D) */
     --card: 350 28% 13.5%; /* Deep berry brown card surface (#2B171B) */
     --popover: 350 28% 13.5%;
@@ -377,8 +377,8 @@
     --dept-sales: 330 6% 91%;
   }
 
-  /* ================= Color Theme: Purple (Lilac) ================= */
-  :root[data-color-theme="purple"] {
+  /* ================= Color Theme: Purple (Lilac - Default) ================= */
+  :root[data-color-theme="purple"], :root:not([data-color-theme]) {
     --background: 265 40% 99.2%; /* Airy pearl-lavender white canvas */
     --card: 0 0% 100%;
     --popover: 0 0% 100%;
@@ -412,7 +412,8 @@
   .dark[data-color-theme="purple"],
   .dark [data-color-theme="purple"],
   [data-color-theme="purple"].dark,
-  [data-color-theme="purple"] .dark {
+  [data-color-theme="purple"] .dark,
+  .dark:not([data-color-theme]) {
     --background: 264 33% 6.5%; /* Deep midnight violet night canvas */
     --card: 264 35% 16%; /* Deep amethyst-violet card surface */
     --popover: 264 35% 16%;

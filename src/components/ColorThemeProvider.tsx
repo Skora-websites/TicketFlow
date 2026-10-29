@@ -10,7 +10,7 @@ interface ColorThemeContextType {
 }
 
 const ColorThemeContext = createContext<ColorThemeContextType>({
-  colorTheme: "rose",
+  colorTheme: "purple",
   setColorTheme: () => {},
 });
 
@@ -20,7 +20,7 @@ interface ColorThemeProviderProps {
 }
 
 export function ColorThemeProvider({ children, isApp = false }: ColorThemeProviderProps) {
-  const [savedTheme, setSavedTheme] = useState<ColorTheme>("rose");
+  const [savedTheme, setSavedTheme] = useState<ColorTheme>("purple");
 
   useEffect(() => {
     try {
