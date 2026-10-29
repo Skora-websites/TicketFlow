@@ -75,20 +75,39 @@ export function CategoriesContent() {
       toast({ title: "Name must be at least 2 characters", variant: "destructive" });
       return;
     }
+    const trimmed = name.trim();
+    const tempSlug = `temp-${Date.now()}`;
+    const linkedDept = newDeptId
+      ? { _id: newDeptId, name: deptNameById.get(newDeptId) || "Department" }
+      : null;
+    const tempCategory = {
+      _id: tempSlug,
+      name: trimmed,
+      slug: tempSlug,
+      color,
+      departmentId: linkedDept,
+    } as any;
+
+    setCategories((prev) => [...prev, tempCategory]);
+    setName("");
+    setNewDeptId("");
     setIsCreating(true);
+
     try {
       const res = await fetch("/api/categories", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name: name.trim(), color, departmentId: newDeptId || undefined }),
+        body: JSON.stringify({ name: trimmed, color, departmentId: newDeptId || undefined }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to create category");
       toast({ title: "Category created", description: data.category?.name });
-      setName("");
-      setNewDeptId("");
-      load();
+      if (data.category) {
+        setCategories((prev) => prev.map((c) => (c.slug === tempSlug ? data.category : c)));
+      }
     } catch (err) {
+      setCategories((prev) => prev.filter((c) => c.slug !== tempSlug));
+      setName(trimmed);
       toast({
         title: "Create failed",
         description: err instanceof Error ? err.message : "Unknown error",
