@@ -27,7 +27,6 @@ import {
 } from "@/components/ui/breadcrumb";
 import { Badge } from "@/components/ui/badge";
 import { NotificationsBell } from "@/components/notifications-bell";
-import { MobileSidebar } from "./sidebar";
 import { HeaderSearch } from "./HeaderSearch";
 
 const segmentLabels: Record<string, string> = {
@@ -167,7 +166,6 @@ export function Header() {
   return (
     <header className="sticky top-0 z-30 h-12 w-full border-b border-border bg-card">
       <div className="flex h-full items-center gap-3 px-4 sm:gap-4 sm:px-6">
-        <MobileSidebar />
         <div className="min-w-0 flex-1">
           <Breadcrumbs pathname={pathname} />
         </div>
