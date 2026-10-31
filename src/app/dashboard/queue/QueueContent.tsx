@@ -26,7 +26,15 @@ import {
 import { IUser, IDepartment } from "@/lib/db/models";
 import { useSession } from "next-auth/react";
 import { useToast } from "@/components/ui/toast";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
+import {
+  ResponsiveSheet,
+  ResponsiveSheetContent,
+  ResponsiveSheetHeader,
+  ResponsiveSheetTitle,
+  ResponsiveSheetFooter,
+  ResponsiveSheetTrigger,
+  ResponsiveSheetBody,
+} from "@/components/ui/responsive-sheet";
 import { Label } from "@/components/ui/label";
 
 interface TicketWithRelations {
@@ -256,17 +264,21 @@ export function QueueContent() {
         </div>
       </div>
 
-      {/* Assign Dialog */}
-      <Dialog open={!!selectedTicketId} onOpenChange={(open) => !open && setSelectedTicketId(null)}>
-        <DialogTrigger asChild>
+      {/* Assign Dialog on Desktop / Draggable Bottom Sheet on Mobile */}
+      <ResponsiveSheet
+        open={!!selectedTicketId}
+        onOpenChange={(open) => !open && setSelectedTicketId(null)}
+        snapPoints={[0.55, 0.9]}
+      >
+        <ResponsiveSheetTrigger asChild>
           <Button variant="outline" onClick={() => setSelectedTicketId(null)} className="hidden" />
-        </DialogTrigger>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>{isSuperAdmin ? "Forward Ticket" : "Assign Ticket"}</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <p className="text-muted-foreground">
+        </ResponsiveSheetTrigger>
+        <ResponsiveSheetContent>
+          <ResponsiveSheetHeader>
+            <ResponsiveSheetTitle>{isSuperAdmin ? "Forward Ticket" : "Assign Ticket"}</ResponsiveSheetTitle>
+          </ResponsiveSheetHeader>
+          <ResponsiveSheetBody className="space-y-4">
+            <p className="text-muted-foreground text-xs sm:text-sm">
               {isSuperAdmin
                 ? "Forward this unassigned ticket to a manager. They can then assign it to a member of their team."
                 : "Select a team member to assign this ticket to. The department will be inferred from the assignee."}
@@ -277,7 +289,7 @@ export function QueueContent() {
                 <SelectTrigger id="assignee" className="w-full">
                   <SelectValue placeholder={isSuperAdmin ? "Select manager" : "Select team member"} />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="max-h-56">
                   {teamMembers
                     .filter((m: IUser) => !isSuperAdmin || m.role === "manager")
                     .map((member) => (
@@ -285,8 +297,8 @@ export function QueueContent() {
                       <div className="flex items-center gap-2">
                         <UserAvatar name={member.name} role={member.role as any} size="sm" />
                         <div>
-                          <p className="font-medium">{member.name}</p>
-                          <p className="text-xs text-muted-foreground">{member.email}</p>
+                          <p className="font-medium text-xs sm:text-sm">{member.name}</p>
+                          <p className="text-[11px] text-muted-foreground">{member.email}</p>
                         </div>
                       </div>
                     </SelectItem>
@@ -294,17 +306,17 @@ export function QueueContent() {
                 </SelectContent>
               </Select>
             </div>
-          </div>
-          <DialogFooter>
+          </ResponsiveSheetBody>
+          <ResponsiveSheetFooter>
             <Button variant="outline" onClick={() => setSelectedTicketId(null)}>
               Cancel
             </Button>
             <Button onClick={handleAssign} loading={isAssigning}>
               {isSuperAdmin ? "Forward Ticket" : "Assign Ticket"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </ResponsiveSheetFooter>
+        </ResponsiveSheetContent>
+      </ResponsiveSheet>
 
       {/* Tickets List */}
       <Card className="card-elevated">

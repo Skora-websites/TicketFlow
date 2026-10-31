@@ -8,6 +8,8 @@ import { ReactNode, useEffect } from "react";
 import { usePathname } from "next/navigation";
 
 import { ColorThemeProvider } from "@/components/ColorThemeProvider";
+import { DraftResumeProvider } from "@/lib/drafts/context";
+import { MinimizedWorkflowDock } from "@/components/drafts/MinimizedWorkflowDock";
 
 function AccountThemeSync() {
   const { data: session } = useSession();
@@ -38,9 +40,12 @@ export function Providers({ children }: { children: ReactNode }) {
         forcedTheme={isApp ? undefined : "dark"}
       >
         <ColorThemeProvider isApp={Boolean(isApp)}>
-          <AccountThemeSync />
-          {children}
-          <Toaster />
+          <DraftResumeProvider>
+            <AccountThemeSync />
+            {children}
+            {isApp && <MinimizedWorkflowDock />}
+            <Toaster />
+          </DraftResumeProvider>
         </ColorThemeProvider>
       </ThemeProvider>
     </SessionProvider>
