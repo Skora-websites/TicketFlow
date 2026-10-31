@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { fetchWithCache } from "@/lib/client-cache";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -78,6 +79,7 @@ export function UsersContent() {
   const [users, setUsers] = useState<UserWithDept[]>([]);
   const [departments, setDepartments] = useState<IDepartment[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
@@ -115,44 +117,56 @@ export function UsersContent() {
   const isSuperAdmin = session?.user?.role === "super_admin";
   const watchRole = form.watch("role");
 
-  useEffect(() => {
-    async function fetchData() {
+  const fetchData = useCallback(async (abortSignal?: AbortSignal) => {
+    if (users.length === 0) {
       setIsLoading(true);
-      try {
-        const params = new URLSearchParams({
-          page: String(pagination.page),
-          limit: String(pagination.limit),
-        });
-        if (filters.role !== "all") params.set("role", filters.role);
-        if (filters.departmentId !== "all") params.set("departmentId", filters.departmentId);
-        if (filters.search) params.set("search", filters.search);
-        const [usersRes, deptsRes] = await Promise.all([
-          fetch(`/api/users?${params.toString()}`),
-          fetch("/api/departments?limit=100"),
-        ]);
-
-        if (!usersRes.ok) throw new Error("Failed to fetch users");
-        if (!deptsRes.ok) throw new Error("Failed to fetch departments");
-
-        const usersData = await usersRes.json();
-        const deptsData = await deptsRes.json();
-
-        setUsers(usersData.users);
-        setPagination(usersData.pagination);
-        setDepartments(deptsData.departments);
-        // Reporting-manager dropdown options (superadmin only).
-        if (isSuperAdmin) {
-          const mgrRes = await fetch("/api/users?role=manager&limit=100");
-          if (mgrRes.ok) setManagers((await mgrRes.json()).users ?? []);
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load users");
-      } finally {
-        setIsLoading(false);
-      }
+    } else {
+      setIsRefetching(true);
     }
-    fetchData();
-  }, [pagination.page, filters]);
+    setError("");
+    try {
+      const params = new URLSearchParams({
+        page: String(pagination.page),
+        limit: String(pagination.limit),
+      });
+      if (filters.role !== "all") params.set("role", filters.role);
+      if (filters.departmentId !== "all") params.set("departmentId", filters.departmentId);
+      if (filters.search) params.set("search", filters.search);
+
+      // Fetch users with abort signal; cache departments and managers
+      const [usersRes, deptsData, managersData] = await Promise.all([
+        fetch(`/api/users?${params.toString()}`, { signal: abortSignal }),
+        fetchWithCache<{ departments: IDepartment[] }>("/api/departments?limit=100", undefined, { ttlMs: 60_000 }),
+        isSuperAdmin
+          ? fetchWithCache<{ users: UserWithDept[] }>("/api/users?role=manager&limit=100", undefined, { ttlMs: 60_000 })
+          : Promise.resolve({ users: [] }),
+      ]);
+
+      if (!usersRes.ok) throw new Error("Failed to fetch users");
+      const usersData = await usersRes.json();
+
+      setUsers(usersData.users ?? []);
+      setPagination(usersData.pagination);
+      setDepartments(deptsData.departments ?? []);
+      if (isSuperAdmin && managersData.users) {
+        setManagers(managersData.users);
+      }
+    } catch (err: any) {
+      if (err?.name === "AbortError") return;
+      setError(err instanceof Error ? err.message : "Failed to load users");
+    } finally {
+      setIsLoading(false);
+      setIsRefetching(false);
+    }
+  }, [pagination.page, filters, isSuperAdmin, users.length]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchData(controller.signal);
+    return () => {
+      controller.abort();
+    };
+  }, [fetchData]);
 
   // Debounce search input
   useEffect(() => {
@@ -345,7 +359,7 @@ export function UsersContent() {
     client: "bg-warning-muted text-warning border-warning/20",
   };
 
-  if (isLoading) {
+  if (isLoading && users.length === 0) {
     return (
       <div className="space-y-6" aria-label="Loading users" aria-busy="true">
         {/* Header */}
@@ -420,13 +434,13 @@ export function UsersContent() {
     );
   }
 
-  if (error) {
+  if (error && users.length === 0) {
     return (
       <div className="text-center py-12">
         <Users className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-semibold mb-2">Failed to load users</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <Button onClick={() => fetchData()}>Retry</Button>
       </div>
     );
   }
@@ -635,7 +649,7 @@ export function UsersContent() {
               <p className="text-muted-foreground">Get started by adding a new user</p>
             </div>
           ) : (
-            <div className="divide-y divide-border">
+            <div className={cn("divide-y divide-border transition-opacity duration-200", isRefetching ? "opacity-60 pointer-events-none" : "opacity-100")}>
               {users.map((user) => (
                 <div key={user._id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/50 transition-colors">
                   <div className="flex items-center gap-3 min-w-0">

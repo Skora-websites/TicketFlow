@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 export type ColorTheme = "rose" | "purple" | "lime" | "brown";
 
@@ -20,6 +21,7 @@ interface ColorThemeProviderProps {
 }
 
 export function ColorThemeProvider({ children, isApp = false }: ColorThemeProviderProps) {
+  const { data: session, update: updateSession } = useSession();
   const [savedTheme, setSavedTheme] = useState<ColorTheme>("purple");
 
   useEffect(() => {
@@ -32,6 +34,21 @@ export function ColorThemeProvider({ children, isApp = false }: ColorThemeProvid
       // LocalStorage access might fail in privacy-restricted contexts
     }
   }, []);
+
+  // When user session loads, lock to account's saved preference
+  useEffect(() => {
+    const userColorTheme = session?.user?.colorTheme as ColorTheme | undefined;
+    if (
+      userColorTheme &&
+      (userColorTheme === "rose" || userColorTheme === "purple" || userColorTheme === "lime" || userColorTheme === "brown")
+    ) {
+      setSavedTheme(userColorTheme);
+      try {
+        localStorage.setItem("ticketflow-color-theme", userColorTheme);
+      } catch {}
+      document.documentElement.setAttribute("data-color-theme", userColorTheme);
+    }
+  }, [session?.user?.id, session?.user?.colorTheme]);
 
   useEffect(() => {
     if (!isApp) {
@@ -48,6 +65,16 @@ export function ColorThemeProvider({ children, isApp = false }: ColorThemeProvid
     } catch {}
     if (isApp) {
       document.documentElement.setAttribute("data-color-theme", theme);
+    }
+
+    // Lock to user account in database if logged in
+    if (session?.user?.id) {
+      fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ colorTheme: theme }),
+      }).catch((err) => console.warn("Failed to lock colorTheme to account:", err));
+      updateSession?.({ colorTheme: theme }).catch(() => {});
     }
   };
 

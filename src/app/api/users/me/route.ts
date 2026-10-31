@@ -11,6 +11,8 @@ const meUpdateSchema = z
     name: z.string().min(2, "Name must be at least 2 characters").optional(),
     email: z.string().email("Invalid email").optional(),
     avatar: z.string().max(1_000_000, "Avatar image is too large").nullable().optional(),
+    theme: z.enum(["dark", "light", "system"]).optional(),
+    colorTheme: z.enum(["purple", "rose", "lime", "brown"]).optional(),
     currentPassword: z.string().min(1).optional(),
     newPassword: z.string().min(8, "Password must be at least 8 characters").optional(),
   })
@@ -52,7 +54,7 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: parsed.error.issues[0].message }, { status: 400 });
     }
 
-    const { name, email, avatar, currentPassword, newPassword } = parsed.data;
+    const { name, email, avatar, theme, colorTheme, currentPassword, newPassword } = parsed.data;
 
     const user = await User.findById(authUser.id);
     if (!user) {
@@ -72,6 +74,8 @@ export async function PATCH(request: NextRequest) {
 
     if (name) updateData.name = name;
     if (avatar !== undefined) updateData.avatar = avatar;
+    if (theme) updateData.theme = theme;
+    if (colorTheme) updateData.colorTheme = colorTheme;
     if (email && email.toLowerCase() !== user.email) {
       if (!currentPassword) {
         return NextResponse.json({ error: "Current password is required to change email" }, { status: 400 });

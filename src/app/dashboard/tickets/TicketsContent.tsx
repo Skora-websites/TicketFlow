@@ -73,6 +73,7 @@ export function TicketsContent() {
   const currentUserRole = session?.user?.role as string | undefined;
   const [tickets, setTickets] = useState<TicketWithRelations[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefetching, setIsRefetching] = useState(false);
   const [error, setError] = useState("");
   const [pagination, setPagination] = useState({
     page: 1,
@@ -111,9 +112,14 @@ export function TicketsContent() {
   }, [searchInput]);
 
   useEffect(() => {
-    let cancelled = false;
+    const abortController = new AbortController();
     async function fetchTickets() {
-      setIsLoading(true);
+      // Only show full skeleton on initial mount when no tickets exist yet
+      if (tickets.length === 0) {
+        setIsLoading(true);
+      } else {
+        setIsRefetching(true);
+      }
       setError("");
       try {
         const params = new URLSearchParams();
@@ -125,21 +131,24 @@ export function TicketsContent() {
         if (category !== ALL) params.set("category", category);
         if (search) params.set("search", search);
 
-        const res = await fetch(`/api/tickets?${params.toString()}`);
+        const res = await fetch(`/api/tickets?${params.toString()}`, {
+          signal: abortController.signal,
+        });
         if (!res.ok) throw new Error("Failed to fetch tickets");
         const data = await res.json();
-        if (cancelled) return;
-        setTickets(data.tickets);
+        setTickets(data.tickets ?? []);
         setPagination(data.pagination);
-      } catch (err) {
-        if (!cancelled) setError(err instanceof Error ? err.message : "Failed to load tickets");
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
+        setError(err instanceof Error ? err.message : "Failed to load tickets");
       } finally {
-        if (!cancelled) setIsLoading(false);
+        setIsLoading(false);
+        setIsRefetching(false);
       }
     }
     fetchTickets();
     return () => {
-      cancelled = true;
+      abortController.abort();
     };
   }, [page, limit, view, status, priority, category, search, refreshKey]);
 
@@ -383,7 +392,7 @@ export function TicketsContent() {
       {/* Tickets List */}
       <Card>
         <CardContent className="p-0">
-          {isLoading ? (
+          {(isLoading && tickets.length === 0) ? (
             <div aria-label="Loading tickets" aria-busy="true">
               {/* Header count and view mode toggle skeleton */}
               <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5 sm:px-5 sm:py-3">
@@ -461,7 +470,7 @@ export function TicketsContent() {
             <div className="p-12 text-center">
               <h3 className="mb-1 text-lg font-medium text-foreground">Couldn&apos;t load tickets</h3>
               <p className="mb-4 text-muted-foreground">{error}</p>
-              <Button variant="outline" onClick={() => window.location.reload()}>
+              <Button variant="outline" onClick={() => setRefreshKey((k) => k + 1)}>
                 Retry
               </Button>
             </div>
@@ -500,11 +509,14 @@ export function TicketsContent() {
               )}
             </div>
           ) : (
-            <>
+            <div className={cn("transition-opacity duration-200", isRefetching ? "opacity-60 pointer-events-none" : "opacity-100")}>
               <div className="flex items-center justify-between border-b border-border px-3.5 py-2.5 sm:px-5 sm:py-3">
-                <p className="text-xs font-semibold text-muted-foreground" role="status">
-                  {pagination.total} ticket{pagination.total !== 1 ? "s" : ""}
-                  {hasActiveFilters ? " matching filters" : ""}
+                <p className="text-xs font-semibold text-muted-foreground flex items-center gap-1.5" role="status">
+                  <span>
+                    {pagination.total} ticket{pagination.total !== 1 ? "s" : ""}
+                    {hasActiveFilters ? " matching filters" : ""}
+                  </span>
+                  {isRefetching && <Loader2 className="h-3 w-3 animate-spin text-primary" aria-label="Updating tickets" />}
                 </p>
                 <div className="hidden sm:flex items-center gap-1 rounded-xl border border-border bg-secondary/40 p-1">
                   <button
@@ -615,7 +627,7 @@ export function TicketsContent() {
                   </div>
                 </div>
               )}
-            </>
+            </div>
           )}
         </CardContent>
       </Card>

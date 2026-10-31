@@ -153,6 +153,17 @@ export function Header() {
   const pathname = usePathname();
   const isClient = user?.role === "client";
 
+  const handleSetTheme = (newTheme: string) => {
+    setTheme(newTheme);
+    if (session?.user?.id) {
+      fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: newTheme }),
+      }).catch(() => {});
+    }
+  };
+
   return (
     <header className="sticky top-0 z-30 h-12 w-full border-b border-border bg-card">
       <div className="flex h-full items-center gap-3 px-4 sm:gap-4 sm:px-6">
@@ -168,7 +179,7 @@ export function Header() {
         </div>
 
         <div className="flex items-center gap-2">
-          <ThemeToggle theme={resolvedTheme} setTheme={setTheme} />
+          <ThemeToggle theme={resolvedTheme} setTheme={handleSetTheme} />
 
           <NotificationsBell />
 

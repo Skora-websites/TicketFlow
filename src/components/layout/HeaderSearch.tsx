@@ -110,7 +110,7 @@ export function HeaderSearch() {
     });
   }, [registerSearchFocus]);
 
-  // Debounced ticket search (staff only — clients use the portal list).
+  // Debounced ticket search with request cancellation (staff only).
   useEffect(() => {
     if (isClient) return;
     const q = query.trim();
@@ -118,18 +118,25 @@ export function HeaderSearch() {
       setResults([]);
       return;
     }
+    const abortController = new AbortController();
     const t = setTimeout(async () => {
       try {
-        const res = await fetch(`/api/tickets?search=${encodeURIComponent(q)}&limit=6`);
+        const res = await fetch(`/api/tickets?search=${encodeURIComponent(q)}&limit=6`, {
+          signal: abortController.signal,
+        });
         if (res.ok) {
           const data = await res.json();
           setResults(data.tickets ?? []);
         }
-      } catch {
+      } catch (err: any) {
+        if (err?.name === "AbortError") return;
         // best-effort; keep previous results
       }
     }, 250);
-    return () => clearTimeout(t);
+    return () => {
+      clearTimeout(t);
+      abortController.abort();
+    };
   }, [query, isClient]);
 
   // Flattened, query-filtered rows (mirrors the old palette's groups and its

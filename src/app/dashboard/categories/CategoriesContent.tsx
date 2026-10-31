@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useToast } from "@/components/ui/toast";
-import { Loader2, Plus, Trash2, Tags, Building2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Tags, Building2, AlertTriangle } from "lucide-react";
+import { fetchWithCache, getCached, invalidateCache } from "@/lib/client-cache";
 
 interface Category {
   _id: string;
@@ -33,9 +34,13 @@ interface Department {
 
 export function CategoriesContent() {
   const { toast } = useToast();
-  const [categories, setCategories] = useState<Category[]>([]);
-  const [departments, setDepartments] = useState<Department[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cachedCats = getCached<{ categories?: Category[] }>("/api/categories");
+  const cachedDepts = getCached<{ departments?: Department[] }>("/api/departments");
+
+  const [categories, setCategories] = useState<Category[]>(cachedCats?.categories ?? []);
+  const [departments, setDepartments] = useState<Department[]>(cachedDepts?.departments ?? []);
+  const [isLoading, setIsLoading] = useState(!cachedCats?.categories);
+  const [error, setError] = useState("");
   const [name, setName] = useState("");
   const [color, setColor] = useState("#6B7280");
   const [newDeptId, setNewDeptId] = useState("");
@@ -43,26 +48,29 @@ export function CategoriesContent() {
   const [deletingSlug, setDeletingSlug] = useState<string | null>(null);
   const [savingSlug, setSavingSlug] = useState<string | null>(null);
 
-  const load = async () => {
+  const load = useCallback(async (force = false) => {
+    if (categories.length === 0) setIsLoading(true);
+    setError("");
     try {
-      const [catRes, deptRes] = await Promise.all([fetch("/api/categories"), fetch("/api/departments")]);
-      if (!catRes.ok) throw new Error();
-      const data = await catRes.json();
-      setCategories(data.categories ?? []);
-      if (deptRes.ok) {
-        const dData = await deptRes.json();
-        setDepartments(dData.departments ?? []);
-      }
+      const [catData, deptData] = await Promise.all([
+        fetchWithCache<{ categories: Category[] }>("/api/categories", undefined, { ttlMs: 60_000, force }),
+        fetchWithCache<{ departments: Department[] }>("/api/departments", undefined, { ttlMs: 60_000, force }),
+      ]);
+      setCategories(catData.categories ?? []);
+      setDepartments(deptData.departments ?? []);
     } catch {
+      if (categories.length === 0) {
+        setError("Failed to load categories");
+      }
       toast({ title: "Error", description: "Failed to load categories", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [categories.length, toast]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   const deptNameById = useMemo(() => {
     const map = new Map<string, string>();
@@ -105,6 +113,7 @@ export function CategoriesContent() {
       if (data.category) {
         setCategories((prev) => prev.map((c) => (c.slug === tempSlug ? data.category : c)));
       }
+      invalidateCache("/api/categories");
     } catch (err) {
       setCategories((prev) => prev.filter((c) => c.slug !== tempSlug));
       setName(trimmed);
@@ -144,6 +153,7 @@ export function CategoriesContent() {
       if (data.category) {
         setCategories((prev) => prev.map((c) => (c.slug === slug ? data.category : c)));
       }
+      invalidateCache("/api/categories");
     } catch (err) {
       setCategories(prevCategories);
       toast({
@@ -163,6 +173,7 @@ export function CategoriesContent() {
       const res = await fetch(`/api/categories?slug=${encodeURIComponent(slug)}`, { method: "DELETE" });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(data.error || "Failed to delete");
+      invalidateCache("/api/categories");
     } catch (err) {
       setCategories(prevCategories);
       toast({
@@ -172,6 +183,49 @@ export function CategoriesContent() {
       });
     }
   };
+
+  if (isLoading && categories.length === 0) {
+    return (
+      <div className="mx-auto max-w-3xl space-y-6" aria-label="Loading categories" aria-busy="true">
+        <div>
+          <Skeleton className="h-8 w-48 rounded-md mb-1.5" />
+          <Skeleton className="h-4 w-96 rounded-md" />
+        </div>
+        <Card>
+          <CardContent className="p-6">
+            <Skeleton className="h-10 w-full rounded-lg" />
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-0 divide-y divide-border">
+            {[1, 2, 3, 4].map((i) => (
+              <div key={i} className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Skeleton className="h-4 w-4 rounded-full" />
+                  <Skeleton className="h-4 w-28 rounded" />
+                </div>
+                <div className="flex items-center gap-2">
+                  <Skeleton className="h-8 w-36 rounded-md" />
+                  <Skeleton className="h-8 w-8 rounded-md" />
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error && categories.length === 0) {
+    return (
+      <div className="text-center py-12">
+        <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
+        <h2 className="text-xl font-semibold mb-2">Failed to load categories</h2>
+        <p className="text-muted-foreground mb-4">{error}</p>
+        <Button onClick={() => load(true)}>Retry</Button>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">

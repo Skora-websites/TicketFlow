@@ -135,7 +135,7 @@ export function NotificationsContent() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {isLoading ? (
+          {(isLoading && items.length === 0) ? (
             <ul className="divide-y divide-border" aria-label="Loading notifications" aria-busy="true">
               {[1, 2, 3, 4].map((i) => (
                 <li key={i} className="flex items-start gap-3 py-3">
@@ -149,7 +149,12 @@ export function NotificationsContent() {
               ))}
             </ul>
           ) : error ? (
-            <p className="text-sm text-destructive">{error}</p>
+            <div className="py-6 text-center">
+              <p className="text-sm text-destructive mb-3">{error}</p>
+              <Button variant="outline" size="sm" onClick={() => load()}>
+                Retry
+              </Button>
+            </div>
           ) : items.length === 0 ? (
             <p className="text-sm text-muted-foreground py-8 text-center">
               No notifications yet. You&apos;ll be notified when tickets are assigned to you,

@@ -8,6 +8,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Plus, TicketCheck } from "lucide-react";
 import type { IUser, IDepartment } from "@/lib/db/models";
 
+import { useCallback } from "react";
+import { fetchWithCache, getCached } from "@/lib/client-cache";
+
 interface TicketWithRelations {
   _id: string;
   ticketNumber: string;
@@ -24,28 +27,36 @@ interface TicketWithRelations {
   closedAt?: Date;
 }
 
+const CLIENT_TICKETS_URL = "/api/tickets?view=mine";
+
 export function ClientTicketsContent() {
-  const [tickets, setTickets] = useState<TicketWithRelations[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cached = getCached<{ tickets: TicketWithRelations[] }>(CLIENT_TICKETS_URL);
+  const [tickets, setTickets] = useState<TicketWithRelations[]>(cached?.tickets ?? []);
+  const [isLoading, setIsLoading] = useState(!cached?.tickets);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchTickets() {
-      try {
-        const res = await fetch("/api/tickets?view=mine");
-        if (!res.ok) throw new Error("Failed to fetch tickets");
-        const data = await res.json();
-        setTickets(data.tickets);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load tickets");
-      } finally {
-        setIsLoading(false);
-      }
+  const fetchTickets = useCallback(async (force = false) => {
+    if (tickets.length === 0) setIsLoading(true);
+    setError("");
+    try {
+      const data = await fetchWithCache<{ tickets: TicketWithRelations[] }>(
+        CLIENT_TICKETS_URL,
+        undefined,
+        { ttlMs: 15_000, force }
+      );
+      setTickets(data.tickets ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load tickets");
+    } finally {
+      setIsLoading(false);
     }
-    fetchTickets();
-  }, []);
+  }, [tickets.length]);
 
-  if (isLoading) {
+  useEffect(() => {
+    fetchTickets();
+  }, [fetchTickets]);
+
+  if (isLoading && tickets.length === 0) {
     return (
       <div className="space-y-6" aria-label="Loading tickets" aria-busy="true">
         {/* Header */}
@@ -67,13 +78,13 @@ export function ClientTicketsContent() {
     );
   }
 
-  if (error) {
+  if (error && tickets.length === 0) {
     return (
       <div className="text-center py-12">
         <TicketCheck className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-semibold mb-2">Failed to load tickets</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <Button onClick={() => fetchTickets(true)}>Retry</Button>
       </div>
     );
   }

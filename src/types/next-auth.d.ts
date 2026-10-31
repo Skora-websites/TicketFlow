@@ -8,6 +8,8 @@ declare module "next-auth" {
       role: string;
       departmentId?: string;
       ticketAccess?: "department" | "assigned";
+      theme?: "dark" | "light" | "system";
+      colorTheme?: "purple" | "rose" | "lime" | "brown";
     } & DefaultSession["user"];
   }
 
@@ -15,6 +17,8 @@ declare module "next-auth" {
     role: string;
     departmentId?: string;
     remember?: boolean;
+    theme?: "dark" | "light" | "system";
+    colorTheme?: "purple" | "rose" | "lime" | "brown";
   }
 }
 
@@ -26,5 +30,7 @@ declare module "next-auth/jwt" {
     ticketAccess?: "department" | "assigned";
     remember?: boolean;
     image?: string | null;
+    theme?: "dark" | "light" | "system";
+    colorTheme?: "purple" | "rose" | "lime" | "brown";
   }
 }

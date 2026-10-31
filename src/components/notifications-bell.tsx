@@ -48,6 +48,7 @@ export function NotificationsBell() {
   };
 
   useEffect(() => {
+    if (!user) return;
     let active = true;
     const run = async () => {
       if (active) await load();

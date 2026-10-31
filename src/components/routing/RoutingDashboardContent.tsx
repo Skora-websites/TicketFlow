@@ -170,7 +170,7 @@ export function RoutingDashboardContent() {
     setBuilderOpen(true);
   };
 
-  if (loading) {
+  if (loading && rules.length === 0) {
     return (
       <div className="space-y-6" aria-label="Loading routing" aria-busy="true">
         {/* Header */}
@@ -221,7 +221,7 @@ export function RoutingDashboardContent() {
     );
   }
 
-  if (error) {
+  if (error && rules.length === 0) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center">
         <div className="text-center">

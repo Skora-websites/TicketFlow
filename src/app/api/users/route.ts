@@ -11,7 +11,7 @@ import { randomBytes } from "node:crypto";
 
 const userQuerySchema = z.object({
   page: z.coerce.number().positive().default(1),
-  limit: z.coerce.number().positive().max(50).default(20),
+  limit: z.coerce.number().positive().max(100).default(20),
   role: z.enum(["super_admin", "manager", "team", "client"]).or(z.literal("")).optional(),
   departmentId: z.string().optional(),
   // z.coerce.boolean() turns ?active=false into true (Boolean("false") is
