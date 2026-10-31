@@ -12,13 +12,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  ResponsiveSheet,
+  ResponsiveSheetContent,
+  ResponsiveSheetDescription,
+  ResponsiveSheetFooter,
+  ResponsiveSheetHeader,
+  ResponsiveSheetTitle,
+  ResponsiveSheetBody,
+} from "@/components/ui/responsive-sheet";
 import { useToast } from "@/components/ui/toast";
 import { useCategories } from "@/hooks/use-categories";
 import { ArrowRightLeft, Loader2 } from "lucide-react";
@@ -182,26 +183,31 @@ export function TransferDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={(v) => (!v ? onClose() : undefined)}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+    <ResponsiveSheet
+      open={open}
+      onOpenChange={(v) => (!v ? onClose() : undefined)}
+      snapPoints={[0.65, 0.95]}
+    >
+      <ResponsiveSheetContent className="sm:max-w-lg">
+        <ResponsiveSheetHeader>
+          <ResponsiveSheetTitle className="flex items-center gap-2">
             <ArrowRightLeft className="h-4 w-4 text-primary" aria-hidden />
             Send {ticketNumber} to another team
-          </DialogTitle>
-          <DialogDescription>
+          </ResponsiveSheetTitle>
+          <ResponsiveSheetDescription>
             The priority you set here is locked for the receiving side — they can read it but not
             change it.
-          </DialogDescription>
-        </DialogHeader>
+          </ResponsiveSheetDescription>
+        </ResponsiveSheetHeader>
 
-        {isLoading ? (
-          <div className="flex items-center justify-center py-10">
-            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
-          </div>
-        ) : (
-          <div className="space-y-4">
-            <div className="space-y-2">
+        <ResponsiveSheetBody>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" aria-hidden />
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-2">
               <Label htmlFor="transfer-dept">Target department</Label>
               {linkedDept ? (
                 // Category-locked target — shown, not chosen.
@@ -336,16 +342,17 @@ export function TransferDialog({
             </p>
           </div>
         )}
+        </ResponsiveSheetBody>
 
-        <DialogFooter>
+        <ResponsiveSheetFooter>
           <Button variant="outline" onClick={onClose} disabled={isSending}>
             Cancel
           </Button>
           <Button onClick={handleSend} loading={isSending} disabled={!deptId || (direction === "agent" && !agentId)}>
             Send ticket
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </ResponsiveSheetFooter>
+      </ResponsiveSheetContent>
+    </ResponsiveSheet>
   );
 }

@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
+import { Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -45,6 +46,7 @@ interface TicketCardProps {
   showRequester?: boolean;
   href?: string;
   onClick?: () => void;
+  onQuickPreview?: (ticket: TicketCardTicket) => void;
   className?: string;
 }
 
@@ -55,6 +57,7 @@ export function TicketCard({
   showRequester = false,
   href,
   onClick,
+  onQuickPreview,
   className,
 }: TicketCardProps) {
   const requester = ticket.requesterId as UserType | undefined;
@@ -78,6 +81,21 @@ export function TicketCard({
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-2 text-sm text-muted-foreground">
+          {onQuickPreview && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onQuickPreview(ticket);
+              }}
+              className="inline-flex h-6 items-center gap-1 rounded-lg border border-border/70 bg-secondary/50 px-2 text-[11px] font-medium text-foreground transition-all hover:bg-secondary active:scale-95"
+              aria-label={`Preview ticket ${ticket.ticketNumber}`}
+            >
+              <Eye className="h-3 w-3 text-primary" />
+              <span>Peek</span>
+            </button>
+          )}
           {assignee && (
             <span className="hidden sm:inline-flex" title={`Assigned to ${assignee.name}`}>
               <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
@@ -164,18 +182,35 @@ export function TicketCard({
               <span>Time: <span className="font-mono text-foreground">{timeAgo}</span></span>
             </div>
           </div>
-          <div className="flex items-center justify-between pt-1">
+          <div className="flex items-center justify-between pt-1 gap-2">
             {assignee ? (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
                 <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
-                <span className="truncate max-w-[120px] font-medium text-foreground">{assignee.name}</span>
+                <span className="truncate max-w-[100px] sm:max-w-[120px] font-medium text-foreground">{assignee.name}</span>
               </div>
             ) : (
               <span className="text-xs text-muted-foreground">Unassigned</span>
             )}
-            <span className="inline-flex h-7 sm:h-8 items-center rounded-xl bg-white px-3 sm:px-3.5 text-xs font-semibold text-[#121212] shadow-xs transition-transform active:scale-95 hover:bg-[#E9E7E8]">
-              View
-            </span>
+            <div className="flex items-center gap-1.5 shrink-0">
+              {onQuickPreview && (
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onQuickPreview(ticket);
+                  }}
+                  className="inline-flex h-7 sm:h-8 items-center gap-1.5 rounded-xl border border-border/80 bg-secondary/60 px-2.5 sm:px-3 text-xs font-semibold text-foreground transition-all active:scale-95 hover:bg-secondary"
+                  aria-label={`Preview ticket ${ticket.ticketNumber}`}
+                >
+                  <Eye className="h-3.5 w-3.5 text-primary" />
+                  <span>Peek</span>
+                </button>
+              )}
+              <span className="inline-flex h-7 sm:h-8 items-center rounded-xl bg-white px-3 sm:px-3.5 text-xs font-semibold text-[#121212] shadow-xs transition-transform active:scale-95 hover:bg-[#E9E7E8]">
+                View
+              </span>
+            </div>
           </div>
         </div>
       </div>

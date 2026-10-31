@@ -17,6 +17,7 @@ TicketFlow is designed to bridge the gap between clients needing fast resolution
    - [Real-Time Conversation & Messaging](#real-time-conversation--messaging)
    - [Analytics, Workload & Heatmaps](#analytics-workload--heatmaps)
    - [Optimistic UI & Client-Side Caching](#optimistic-ui--client-side-caching)
+   - [Minimize & Resume Workflows (Draft Dock)](#minimize--resume-workflows-draft-dock)
    - [Security, Rate Limits & Quotas](#security-rate-limits--quotas)
 5. [Application Architecture & Tech Stack](#5-application-architecture--tech-stack)
 6. [Database Schema & Models](#6-database-schema--models)
@@ -154,6 +155,33 @@ TicketFlow features a custom WhatsApp-style chat interface:
 
 - **Instant Feel**: Status updates, ticket creation, and category changes reflect in the browser immediately while the network request resolves in the background.
 - **In-Memory TTL Cache**: Client-side requests for static/semi-static data (users list, departments, categories) are cached in memory (default 30–60s) to eliminate duplicate API requests during route navigation.
+
+### Minimize & Resume Workflows (Draft Dock)
+*Location: `src/lib/drafts/` & `src/components/drafts/MinimizedWorkflowDock.tsx`*
+
+TicketFlow features a resilient workflow minimization and draft resumption system that prevents accidental data loss during multi-step tasks:
+- **Floating Minimized Dock**: Minimized workflows collapse into a persistent, accessible floating dock at the bottom-right of the viewport with status indicators, relative timestamps, and one-click "Resume" or "Discard" controls.
+- **Supported Workflows**:
+  - **New Ticket Authoring**: Staff and client ticket creation forms automatically save inputs (title, description, category, priority) as you type. Clicking "Minimize to dock" allows free navigation across the platform without losing composition state.
+  - **Ticket Conversations & Replies**: Comment and internal note drafts are auto-saved per ticket ID. Staff can minimize an in-progress response, navigate to other tickets or views, and resume typing exactly where they left off.
+  - **Routing Rule Builder**: Complex multi-condition rules can be paused and minimized into the dock, letting managers inspect live departments and existing rules before resuming the builder.
+- **Persistence & Guardrails**:
+  - **Local Storage Engine**: Safe, debounced persistence with 7-day TTL expiration and privacy-mode exception handling.
+  - **Accidental Navigation Guard**: `beforeunload` warnings prompt users before closing or refreshing tabs with unsaved content.
+  - **Explicit Draft Lifecycle**: Drafts are purged automatically upon successful submission to the server or when explicitly discarded by the user.
+
+### Draggable Bottom Sheets & Mobile Experience
+*Location: `src/components/ui/bottom-sheet.tsx`, `src/components/ui/responsive-sheet.tsx`, `src/components/tickets/MobileTicketFilterSheet.tsx`, `src/components/tickets/TicketQuickPreviewSheet.tsx`*
+
+TicketFlow delivers a native-grade, fluid mobile experience modeled after Google Maps and Uber:
+- **Multi-Snap Gesture Architecture**: Bottom sheets slide up from the viewport bottom and support multi-tier snap points (Peek at 32-35%, Intermediate at 55-65%, and Expanded at 90-95%), responding smoothly to vertical touch drags, velocity flings, and pull-down dismissal.
+- **Independent Nested Scrolling**: Solves touch gesture conflicts through top-boundary scroll detection. When content is scrolled down, touches scroll the content; when scrolled to the top, downward drags seamlessly collapse or dismiss the sheet.
+- **Responsive Sheet Adapter (`ResponsiveSheet`)**: Unified component API that automatically mounts a centered Radix UI Dialog on desktop (`>= 768px`) and a draggable, multi-snap Vaul bottom sheet on mobile (`< 768px`).
+- **Core Mobile Workflows**:
+  - **Mobile Ticket Filtering (`MobileTicketFilterSheet`)**: Replaces heavy desktop filter cards on small screens with a sleek search bar and a "Filters" bottom sheet trigger featuring active filter badge counts. Users can drag up to tune status, priority, and category chips or swipe down to apply.
+  - **Ticket Quick Preview (`TicketQuickPreviewSheet`)**: Mobile users can tap "Peek" on any ticket card to slide up a 3-tier sheet showing a compact summary, intermediate customer/department details, or full description without navigating away.
+  - **Unassigned Queue & Forwarding**: Assignment modals on the queue page slide up as bottom sheets on mobile, giving users full vertical space with avatars and safe-area scrolling.
+  - **Safe Areas & Accessibility**: Full support for iOS/Android home indicator safe areas (`env(safe-area-inset-bottom)`), focus management, visible drag pill handle, keyboard Escape dismissal, and background scroll lock.
 
 ### Security, Rate Limits & Quotas
 *Location: `src/lib/security.ts` & `src/lib/fileValidation.ts`*

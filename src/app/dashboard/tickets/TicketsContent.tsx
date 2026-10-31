@@ -19,6 +19,8 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { TicketList, TicketCard, ticketHref, TicketCardSkeleton } from "@/components/tickets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTable } from "@/components/tickets/TicketTable";
+import { MobileTicketFilterSheet } from "@/components/tickets/MobileTicketFilterSheet";
+import { TicketQuickPreviewSheet } from "@/components/tickets/TicketQuickPreviewSheet";
 import { useSession } from "next-auth/react";
 import { TRANSFERS_ENABLED } from "@/lib/features";
 import { useCategories } from "@/hooks/use-categories";
@@ -93,6 +95,13 @@ export function TicketsContent() {
   const [searchInput, setSearchInput] = useState("");
   // Tabela grid vs table toggle
   const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  // Mobile Quick Preview Bottom Sheet state
+  const [previewTicket, setPreviewTicket] = useState<TicketWithRelations | null>(null);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const handleQuickPreview = (t: any) => {
+    setPreviewTicket(t);
+    setPreviewOpen(true);
+  };
 
   const isManagerOrAdmin = currentUserRole === "manager" || currentUserRole === "super_admin";
   const isStaff = currentUserRole === "team" || isManagerOrAdmin;
@@ -238,8 +247,98 @@ export function TicketsContent() {
         </TabsList>
       </Tabs>
 
-      {/* Filters */}
-      <Card>
+      {/* Mobile Filter & Search Bar with Draggable Bottom Sheet */}
+      <div className="sm:hidden space-y-2.5">
+        <div className="flex items-center gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input
+              placeholder="Search tickets..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="pl-9 pr-8 h-10 rounded-xl bg-card border-border shadow-2xs"
+              aria-label="Search tickets"
+            />
+            {searchInput && (
+              <button
+                type="button"
+                onClick={() => setSearchInput("")}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 p-1 text-muted-foreground hover:text-foreground"
+                aria-label="Clear search text"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+          <MobileTicketFilterSheet
+            status={status}
+            priority={priority}
+            category={category}
+            search={search}
+            categories={categories}
+            isManagerOrAdmin={Boolean(isManagerOrAdmin)}
+            onFilterChange={handleFilterChange}
+            onClearFilters={clearFilters}
+            totalResultsCount={pagination.total}
+          />
+        </div>
+
+        {/* Mobile Active filter badges */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            {status !== ALL && (
+              <Badge variant="outline" className="gap-1 bg-info/5 text-info border-info/20 text-[11px] py-0.5">
+                Status: {status.replace("_", " ")}
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("status", ALL)}
+                  className="rounded hover:bg-info/10 ml-0.5"
+                  aria-label="Clear status filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {priority !== ALL && (
+              <Badge variant="outline" className="gap-1 bg-warning/5 text-warning border-warning/20 text-[11px] py-0.5">
+                Priority: {priority}
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("priority", ALL)}
+                  className="rounded hover:bg-warning/10 ml-0.5"
+                  aria-label="Clear priority filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            {category !== ALL && (
+              <Badge variant="outline" className="gap-1 bg-accent/5 text-accent border-accent/20 text-[11px] py-0.5">
+                Category: {category}
+                <button
+                  type="button"
+                  onClick={() => handleFilterChange("category", ALL)}
+                  className="rounded hover:bg-accent/10 ml-0.5"
+                  aria-label="Clear category filter"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              </Badge>
+            )}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={clearFilters}
+              className="h-6 px-1.5 text-[11px] text-muted-foreground hover:text-foreground ml-auto"
+            >
+              Reset
+            </Button>
+          </div>
+        )}
+      </div>
+
+      {/* Desktop Filters */}
+      <Card className="hidden sm:block">
         <CardContent className="p-4 sm:p-6">
           <form
             onSubmit={(e) => e.preventDefault()}
@@ -573,6 +672,7 @@ export function TicketsContent() {
                       key={t._id}
                       ticket={t as any}
                       href={ticketHref(t)}
+                      onQuickPreview={handleQuickPreview}
                     />
                   ))}
                 </div>
@@ -631,6 +731,13 @@ export function TicketsContent() {
           )}
         </CardContent>
       </Card>
+
+      {/* Mobile Draggable Ticket Quick Preview Bottom Sheet */}
+      <TicketQuickPreviewSheet
+        ticket={previewTicket}
+        open={previewOpen}
+        onOpenChange={setPreviewOpen}
+      />
     </div>
   );
 }

@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UserAvatar } from "./badges";
 import type { IComment as CommentModel, IUser as UserType } from "@/lib/db/models";
-import { Download, Pencil, Trash2, X, Check, Paperclip, Lock, MessageSquareDashed, CheckCheck } from "lucide-react";
+import { Download, Pencil, Trash2, X, Check, Paperclip, Lock, MessageSquareDashed, CheckCheck, Minimize2, Maximize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Timestamp } from "@/components/ui/timestamp";
 import { cn } from "@/lib/utils";
+import { useDraftResume } from "@/lib/drafts/context";
+import { CommentDraftData } from "@/lib/drafts/types";
 
 type AnyComment = CommentModel & { authorId?: UserType };
 
@@ -78,6 +80,78 @@ export function ConversationPanel({
   const [formError, setFormError] = useState("");
   const [optimisticEdits, setOptimisticEdits] = useState<Map<string, string>>(new Map());
   const [optimisticDeletes, setOptimisticDeletes] = useState<Set<string>>(new Set());
+
+  // Draft & Minimize handling
+  const { saveDraft, getDraft, discardDraft, minimizeDraft, activeResumeId, clearActiveResume } = useDraftResume();
+  const draftKey = `comment:${ticketId}`;
+  const [isMinimized, setIsMinimized] = useState(false);
+
+  // Restore comment draft on mount if available
+  useEffect(() => {
+    const existing = getDraft<CommentDraftData>(draftKey);
+    if (existing?.data?.body) {
+      setReplyText(existing.data.body);
+      setInternal(Boolean(existing.data.internal));
+      setIsMinimized(Boolean(existing.isMinimized));
+    }
+  }, [draftKey, getDraft]);
+
+  // Expand when resumed from dock
+  useEffect(() => {
+    if (activeResumeId === draftKey) {
+      setIsMinimized(false);
+      clearActiveResume();
+    }
+  }, [activeResumeId, draftKey, clearActiveResume]);
+
+  // Auto-save draft as user types
+  useEffect(() => {
+    if (!replyText.trim()) return;
+    const timeout = setTimeout(() => {
+      saveDraft<CommentDraftData>({
+        id: draftKey,
+        type: "comment",
+        title: `Draft Reply (${ticketId.slice(0, 8)})`,
+        subtitle: replyText.trim().slice(0, 50) + "...",
+        path: window.location.pathname,
+        data: {
+          ticketId,
+          body: replyText,
+          internal,
+        },
+        isMinimized,
+      });
+    }, 600);
+    return () => clearTimeout(timeout);
+  }, [draftKey, internal, isMinimized, replyText, saveDraft, ticketId]);
+
+  const handleMinimizeComment = () => {
+    if (replyText.trim()) {
+      saveDraft<CommentDraftData>({
+        id: draftKey,
+        type: "comment",
+        title: `Draft Reply (${ticketId.slice(0, 8)})`,
+        subtitle: replyText.trim().slice(0, 50) + "...",
+        path: window.location.pathname,
+        data: {
+          ticketId,
+          body: replyText,
+          internal,
+        },
+        isMinimized: true,
+      });
+      minimizeDraft(draftKey);
+    }
+    setIsMinimized(true);
+  };
+
+  const handleDiscardCommentDraft = () => {
+    discardDraft(draftKey);
+    setReplyText("");
+    setAttachment(null);
+    setInternal(false);
+    setIsMinimized(false);
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -201,6 +275,8 @@ export function ConversationPanel({
       await onAddComment(bodyText, att || undefined, vis);
       // Immediately drop optimistic copy on confirmation to avoid showing the message twice
       setPending((p) => p.filter((m) => m.localId !== localId));
+      discardDraft(draftKey);
+      setIsMinimized(false);
     } catch {
       setPending((p) => p.map((m) => (m.localId === localId ? { ...m, state: "failed" } : m)));
       setFormError("Couldn't send your message. Try again.");
@@ -578,6 +654,37 @@ export function ConversationPanel({
           <MessageSquareDashed className="mx-auto mb-1 h-4 w-4" aria-hidden />
           Read-only — the conversation is between the sender, the department manager, and the assigned agent.
         </div>
+      ) : isMinimized ? (
+        <div className="flex items-center justify-between rounded-xl border border-border bg-muted/40 p-3 text-xs text-muted-foreground animate-in fade-in duration-150">
+          <div className="flex items-center gap-2 truncate">
+            <span className="h-2 w-2 rounded-full bg-primary" />
+            <span className="font-semibold text-foreground">Draft reply minimized</span>
+            <span className="truncate max-w-[200px] text-muted-foreground hidden sm:inline">
+              "{replyText}"
+            </span>
+          </div>
+          <div className="flex items-center gap-1.5 shrink-0">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setIsMinimized(false)}
+              className="h-7 text-xs font-semibold gap-1"
+            >
+              <Maximize2 className="h-3 w-3 text-primary" />
+              Resume
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleDiscardCommentDraft}
+              className="h-7 text-xs text-muted-foreground hover:text-destructive"
+            >
+              Discard
+            </Button>
+          </div>
+        </div>
       ) : (
         <form onSubmit={handleSubmit} className="space-y-3">
           {formError && (
@@ -688,7 +795,21 @@ export function ConversationPanel({
             </div>
           </div>
 
-          <div className="flex justify-end">
+          <div className="flex items-center justify-between">
+            {replyText.trim() ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={handleMinimizeComment}
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1"
+                title="Minimize this message draft to dock"
+              >
+                <Minimize2 className="h-3.5 w-3.5 text-primary" />
+                <span className="hidden sm:inline">Minimize draft</span>
+              </Button>
+            ) : <div />}
+
             <Button
               type="submit"
               size="sm"

@@ -23,6 +23,7 @@ import { AgentCapacityBoard } from "@/components/routing/AgentCapacityBoard";
 import { LivePreviewPanel } from "@/components/routing/LivePreviewPanel";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { useDraftResume } from "@/lib/drafts/context";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -74,6 +75,15 @@ export function RoutingDashboardContent() {
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editingRule, setEditingRule] = useState<Rule | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Rule | null>(null);
+
+  const { activeResumeId, clearActiveResume } = useDraftResume();
+
+  useEffect(() => {
+    if (activeResumeId === "rule:builder" || activeResumeId?.startsWith("rule:")) {
+      setBuilderOpen(true);
+      clearActiveResume();
+    }
+  }, [activeResumeId, clearActiveResume]);
 
   const fetchAll = async (silent = false) => {
     if (!silent) setLoading(true);

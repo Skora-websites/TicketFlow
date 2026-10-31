@@ -16,7 +16,7 @@
     "seed": "tsx scripts/seed-routing.ts",
     "attachments:backfill": "tsx scripts/backfill-attachments.ts",
     "typecheck": "tsc --noEmit",
-    "test": "npm run typecheck && tsx scripts/authz-audit-test.ts && tsx scripts/medium-fixes-test.ts && tsx scripts/chat-audit-test.ts && tsx scripts/transfer-flow-test.ts && tsx scripts/runtime-audit-test.ts && tsx scripts/audit-fixes-test.ts && tsx scripts/security-quotas-test.ts && tsx scripts/avatar-test.ts"
+    "test": "npm run typecheck && tsx scripts/authz-audit-test.ts && tsx scripts/medium-fixes-test.ts && tsx scripts/chat-audit-test.ts && tsx scripts/transfer-flow-test.ts && tsx scripts/runtime-audit-test.ts && tsx scripts/audit-fixes-test.ts && tsx scripts/security-quotas-test.ts && tsx scripts/avatar-test.ts && tsx scripts/draft-workflow-test.ts && tsx scripts/bottom-sheet-test.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",

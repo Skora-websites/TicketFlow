@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, Trash2, Check, Zap } from "lucide-react";
+import { Plus, Trash2, Check, Zap, Minimize2, RotateCcw, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useCategories } from "@/hooks/use-categories";
+import { useDraftResume } from "@/lib/drafts/context";
+import { RuleDraftData } from "@/lib/drafts/types";
 import { cn } from "@/lib/utils";
 
 interface DepartmentLite { id: string; name: string; color: string }
@@ -90,16 +92,66 @@ const DEFAULT_STATE: RuleFormState = {
 export function RuleBuilder({ open, onClose, initial, ruleId, departments, users, onSaved }: RuleBuilderProps) {
   const { toast } = useToast();
   const { categories } = useCategories();
+  const { saveDraft, getDraft, discardDraft, minimizeDraft } = useDraftResume();
+  const draftId = ruleId ? `rule:${ruleId}` : "rule:builder";
+
   const [state, setState] = useState<RuleFormState>({ ...DEFAULT_STATE, ...initial });
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [restoredDraft, setRestoredDraft] = useState(false);
 
   useEffect(() => {
     if (open) {
-      setState({ ...DEFAULT_STATE, ...initial });
+      const existing = getDraft<RuleFormState>(draftId);
+      if (existing?.data && (existing.data.name || existing.data.description || existing.data.conditions?.length > 1 || existing.data.conditions?.[0]?.value)) {
+        setState({ ...DEFAULT_STATE, ...existing.data });
+        setRestoredDraft(true);
+      } else {
+        setState({ ...DEFAULT_STATE, ...initial });
+        setRestoredDraft(false);
+      }
       setErrors({});
     }
-  }, [open, initial]);
+  }, [open, initial, draftId, getDraft]);
+
+  // Debounced auto-save rule draft
+  useEffect(() => {
+    if (!open) return;
+    if (!state.name && !state.description && state.conditions.length <= 1 && !state.conditions[0]?.value) return;
+    const timeout = setTimeout(() => {
+      saveDraft<RuleFormState>({
+        id: draftId,
+        type: "rule",
+        title: state.name ? `Rule: ${state.name}` : "Untitled Routing Rule",
+        subtitle: `${state.conditions.length} condition${state.conditions.length === 1 ? "" : "s"} • priority ${state.priority}`,
+        path: "/dashboard/routing",
+        data: state,
+        isMinimized: false,
+      });
+    }, 600);
+    return () => clearTimeout(timeout);
+  }, [draftId, open, saveDraft, state]);
+
+  const handleMinimizeRule = () => {
+    saveDraft<RuleFormState>({
+      id: draftId,
+      type: "rule",
+      title: state.name ? `Rule: ${state.name}` : "Untitled Routing Rule",
+      subtitle: `${state.conditions.length} condition${state.conditions.length === 1 ? "" : "s"} • priority ${state.priority}`,
+      path: "/dashboard/routing",
+      data: state,
+      isMinimized: true,
+    });
+    minimizeDraft(draftId);
+    onClose();
+  };
+
+  const handleDiscardRuleDraft = () => {
+    discardDraft(draftId);
+    setRestoredDraft(false);
+    setState({ ...DEFAULT_STATE, ...initial });
+    toast({ title: "Rule draft discarded" });
+  };
 
   const addCondition = () =>
     setState((s) => ({
@@ -189,6 +241,7 @@ export function RuleBuilder({ open, onClose, initial, ruleId, departments, users
         throw new Error(err.error ?? "Failed to save rule");
       }
       toast({ title: ruleId ? "Rule updated" : "Rule created" });
+      discardDraft(draftId);
       onSaved();
       onClose();
     } catch (err) {
@@ -205,15 +258,47 @@ export function RuleBuilder({ open, onClose, initial, ruleId, departments, users
   return (
     <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-3xl">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" aria-hidden />
-            {ruleId ? "Edit Rule" : "New Routing Rule"}
-          </DialogTitle>
-          <DialogDescription>
-            Match incoming tickets on conditions, then route them to the right team or agent.
-          </DialogDescription>
+        <DialogHeader className="flex flex-row items-start justify-between space-y-0">
+          <div>
+            <DialogTitle className="flex items-center gap-2">
+              <Zap className="h-4 w-4 text-primary" aria-hidden />
+              {ruleId ? "Edit Rule" : "New Routing Rule"}
+            </DialogTitle>
+            <DialogDescription>
+              Match incoming tickets on conditions, then route them to the right team or agent.
+            </DialogDescription>
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={handleMinimizeRule}
+            className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1.5 mr-6"
+            title="Minimize rule draft to dock and resume later"
+          >
+            <Minimize2 className="h-3.5 w-3.5 text-primary" />
+            <span className="hidden sm:inline">Minimize</span>
+          </Button>
         </DialogHeader>
+
+        {restoredDraft && (
+          <div className="flex items-center justify-between rounded-xl border border-primary/20 bg-primary/5 px-3.5 py-2 text-xs text-foreground mb-2">
+            <div className="flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
+              <span>Restored unsaved rule draft</span>
+            </div>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={handleDiscardRuleDraft}
+              className="h-6 px-2 text-xs text-muted-foreground hover:text-destructive gap-1"
+            >
+              <RotateCcw className="h-3 w-3" />
+              Discard draft
+            </Button>
+          </div>
+        )}
 
         <div className="space-y-6">
           {/* Meta */}
@@ -559,14 +644,27 @@ export function RuleBuilder({ open, onClose, initial, ruleId, departments, users
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} disabled={saving}>
-            Cancel
+        <DialogFooter className="flex flex-col-reverse sm:flex-row sm:items-center sm:justify-between gap-2">
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={handleMinimizeRule}
+            disabled={saving}
+            className="text-xs text-muted-foreground hover:text-foreground gap-1.5 justify-start sm:justify-center h-8"
+          >
+            <Minimize2 className="h-3.5 w-3.5 text-primary" />
+            Minimize to dock
           </Button>
-          <Button onClick={submit} loading={saving}>
-            {!saving && <Check className="h-3.5 w-3.5" aria-hidden />}
-            {ruleId ? "Save Changes" : "Create Rule"}
-          </Button>
+
+          <div className="flex items-center justify-end gap-2">
+            <Button variant="outline" onClick={onClose} disabled={saving}>
+              Cancel
+            </Button>
+            <Button onClick={submit} loading={saving}>
+              {!saving && <Check className="h-3.5 w-3.5" aria-hidden />}
+              {ruleId ? "Save Changes" : "Create Rule"}
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
