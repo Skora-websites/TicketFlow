@@ -8,6 +8,9 @@ A full-stack, role-based helpdesk / ticketing system with an automatic ticket-ro
 
 > **Zero-Config Deployment**: All session secrets, dynamic Vercel host URLs, and trust headers are automatically configured at runtime. If deploying via the button above, the official MongoDB Atlas Vercel integration automatically creates and injects `MONGODB_URI` with zero manual typing required.
 
+📚 **Comprehensive Guide**: For a detailed, human-readable breakdown of system architecture, role lifecycles, and workflows, read **[PROJECT_DOCUMENTATION.md](PROJECT_DOCUMENTATION.md)**.
+
+
 ## What's inside
 
 - **Auto-routing engine** — tickets are evaluated against ordered rules (keyword/category/priority/requester conditions) and assigned to the best-scoring agent based on skills, availability, working hours, live load, and round-robin tie-breaking. A dry-run simulator previews routing as staff type the ticket.
