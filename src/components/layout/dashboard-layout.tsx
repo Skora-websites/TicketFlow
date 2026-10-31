@@ -1,7 +1,7 @@
 "use client";
 
 import { ReactNode, Suspense } from "react";
-import { Sidebar } from "./sidebar";
+import { Sidebar, MobileSidebar } from "./sidebar";
 import { Header } from "./header";
 import { BottomNav } from "./BottomNav";
 import { KeyboardLayerProvider } from "./keyboard-layer";
@@ -19,6 +19,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <div className="app-texture min-h-screen">
         <Suspense fallback={<aside className="hidden lg:fixed lg:inset-y-0 lg:flex lg:w-[215px] lg:flex-col border-r border-border bg-sidebar" />}>
           <Sidebar />
+        </Suspense>
+        <Suspense fallback={null}>
+          <MobileSidebar />
         </Suspense>
         <div className="lg:pl-[215px]">
           <Header />

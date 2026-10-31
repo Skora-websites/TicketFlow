@@ -289,7 +289,7 @@ export function Sidebar() {
   );
 }
 
-export function MobileSidebar() {
+export function MobileSidebar({ showTrigger = false }: { showTrigger?: boolean } = {}) {
   const [open, setOpen] = useState(false);
   const { data: session } = useSession();
   const isClient = session?.user?.role === "client";
@@ -302,11 +302,13 @@ export function MobileSidebar() {
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
-      <SheetTrigger asChild>
-        <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation">
-          <Menu className="h-5 w-5" />
-        </Button>
-      </SheetTrigger>
+      {showTrigger && (
+        <SheetTrigger asChild>
+          <Button variant="ghost" size="icon" className="lg:hidden" aria-label="Open navigation">
+            <Menu className="h-5 w-5" />
+          </Button>
+        </SheetTrigger>
+      )}
       <SheetContent side="left" className="flex w-72 flex-col p-0 border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
         <SheetTitle className="sr-only">Navigation</SheetTitle>
         <div className="flex h-12 items-center border-b border-sidebar-border px-4">
