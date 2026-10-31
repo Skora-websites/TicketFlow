@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { fetchWithCache, getCached } from "@/lib/client-cache";
 
 export interface CategoryOption {
   _id: string;
@@ -19,46 +20,49 @@ const FALLBACK: CategoryOption[] = [
   { _id: "other", name: "Other", slug: "other", color: "#6B7280" },
 ];
 
+const CATEGORIES_URL = "/api/categories";
+
 /**
  * Fetches the dynamic category list (shared by client + agent ticket forms).
- * Falls back to the four seeded defaults while loading / on failure so forms
- * never render an empty dropdown.
+ * Uses in-memory cache so forms render categories immediately without delay,
+ * falling back to the four seeded defaults while loading / on failure.
  */
 export function useCategories() {
-  const [categories, setCategories] = useState<CategoryOption[]>(FALLBACK);
-  const [isLoading, setIsLoading] = useState(true);
+  const cached = getCached<{ categories?: CategoryOption[] }>(CATEGORIES_URL);
+  const initialData = cached?.categories?.length ? cached.categories : FALLBACK;
+  const [categories, setCategories] = useState<CategoryOption[]>(initialData);
+  const [isLoading, setIsLoading] = useState(!cached?.categories?.length);
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/categories")
-      .then((r) => (r.ok ? r.json() : null))
+    fetchWithCache<{
+      categories: {
+        _id: string;
+        name: string;
+        slug: string;
+        color?: string;
+        departmentId?: { _id: string; name: string; color?: string } | null;
+      }[];
+    }>(CATEGORIES_URL, undefined, { ttlMs: 60_000 })
       .then((data) => {
         if (!cancelled && data?.categories?.length) {
-          setCategories(
-            data.categories.map(
-              (c: {
-                _id: string;
-                name: string;
-                slug: string;
-                color?: string;
-                departmentId?: { _id: string; name: string; color?: string } | null;
-              }) => ({
-                _id: c._id,
-                name: c.name,
-                slug: c.slug,
-                color: c.color,
-                departmentId: c.departmentId ?? null,
-              })
-            )
-          );
+          const mapped = data.categories.map((c) => ({
+            _id: c._id,
+            name: c.name,
+            slug: c.slug,
+            color: c.color,
+            departmentId: c.departmentId ?? null,
+          }));
+          setCategories(mapped);
         }
       })
       .catch(() => {
-        // keep fallback
+        // keep existing/fallback
       })
       .finally(() => {
         if (!cancelled) setIsLoading(false);
       });
+
     return () => {
       cancelled = true;
     };

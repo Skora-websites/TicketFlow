@@ -1,6 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { fetchWithCache, getCached } from "@/lib/client-cache";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatAvgResolution } from "@/lib/formatAvgResolution";
@@ -90,45 +92,72 @@ function StatCard({ title, value, icon, bgColor, trend }: StatCardProps) {
 }
 
 export function AnalyticsContent() {
-  const [stats, setStats] = useState({
+  const cachedStats = getCached<{
     overview: {
-      total: 0,
-      open: 0,
-      in_progress: 0,
-      on_hold: 0,
-      resolved: 0,
-      closed: 0,
-      unassigned: 0,
-      avgResolutionDays: 0,
-      avgResolutionHours: 0,
-    },
+      total: number;
+      open: number;
+      in_progress: number;
+      on_hold: number;
+      resolved: number;
+      closed: number;
+      unassigned: number;
+      avgResolutionDays: number;
+      avgResolutionHours: number;
+    };
     charts: {
-      byStatus: [] as { status: string; count: number }[],
-      byPriority: [] as { priority: string; count: number }[],
-      byDepartment: [] as { department: string; count: number }[],
-      weeklyTrend: [] as { week: string; count: number }[],
-      weeklyResolved: [] as { week: string; count: number }[],
-    },
-    workload: [] as any[],
-  });
-  const [isLoading, setIsLoading] = useState(true);
+      byStatus: { status: string; count: number }[];
+      byPriority: { priority: string; count: number }[];
+      byDepartment: { department: string; count: number }[];
+      weeklyTrend: { week: string; count: number }[];
+      weeklyResolved: { week: string; count: number }[];
+    };
+    workload: any[];
+  }>("/api/stats");
+
+  const [stats, setStats] = useState(
+    cachedStats || {
+      overview: {
+        total: 0,
+        open: 0,
+        in_progress: 0,
+        on_hold: 0,
+        resolved: 0,
+        closed: 0,
+        unassigned: 0,
+        avgResolutionDays: 0,
+        avgResolutionHours: 0,
+      },
+      charts: {
+        byStatus: [] as { status: string; count: number }[],
+        byPriority: [] as { priority: string; count: number }[],
+        byDepartment: [] as { department: string; count: number }[],
+        weeklyTrend: [] as { week: string; count: number }[],
+        weeklyResolved: [] as { week: string; count: number }[],
+      },
+      workload: [] as any[],
+    }
+  );
+  const [isLoading, setIsLoading] = useState(!cachedStats);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await fetch("/api/stats");
-        if (!res.ok) throw new Error("Failed to fetch stats");
-        const data = await res.json();
-        setStats(data);
-      } catch (err) {
+  const fetchStats = useCallback(async (force = false) => {
+    if (!stats.overview.total) setIsLoading(true);
+    setError("");
+    try {
+      const data = await fetchWithCache<typeof stats>("/api/stats", undefined, { ttlMs: 30_000, force });
+      setStats(data);
+    } catch (err) {
+      if (!stats.overview.total) {
         setError(err instanceof Error ? err.message : "Failed to load analytics");
-      } finally {
-        setIsLoading(false);
       }
+    } finally {
+      setIsLoading(false);
     }
+  }, [stats.overview.total]);
+
+  useEffect(() => {
     fetchStats();
-  }, []);
+  }, [fetchStats]);
 
   if (isLoading) {
     return (
@@ -172,13 +201,13 @@ export function AnalyticsContent() {
     );
   }
 
-  if (error) {
+  if (error && !stats.overview.total) {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-semibold mb-2">Failed to load analytics</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <button onClick={() => window.location.reload()} className="text-primary hover:underline">Retry</button>
+        <Button onClick={() => fetchStats(true)}>Retry</Button>
       </div>
     );
   }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogT
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { fetchWithCache, getCached, invalidateCache } from "@/lib/client-cache";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -32,11 +33,14 @@ const deptFormSchema = z.object({
 
 type DeptFormData = z.infer<typeof deptFormSchema>;
 
+const DEPTS_URL = "/api/departments?limit=100";
+
 export function DepartmentsContent() {
   const { toast } = useToast();
+  const cached = getCached<{ departments?: IDepartment[] }>(DEPTS_URL);
 
-  const [departments, setDepartments] = useState<IDepartment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [departments, setDepartments] = useState<IDepartment[]>(cached?.departments ?? []);
+  const [isLoading, setIsLoading] = useState(!cached?.departments);
   const [error, setError] = useState("");
   const [editingDept, setEditingDept] = useState<IDepartment | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -52,21 +56,27 @@ export function DepartmentsContent() {
     },
   });
 
-  useEffect(() => {
-    async function fetchDepartments() {
-      try {
-        const res = await fetch("/api/departments?limit=100");
-        if (!res.ok) throw new Error("Failed to fetch departments");
-        const data = await res.json();
-        setDepartments(data.departments);
-      } catch (err) {
+  const fetchDepartments = useCallback(async (force = false) => {
+    if (departments.length === 0) setIsLoading(true);
+    setError("");
+    try {
+      const data = await fetchWithCache<{ departments: IDepartment[] }>(DEPTS_URL, undefined, {
+        ttlMs: 60_000,
+        force,
+      });
+      setDepartments(data.departments ?? []);
+    } catch (err) {
+      if (departments.length === 0) {
         setError(err instanceof Error ? err.message : "Failed to load departments");
-      } finally {
-        setIsLoading(false);
       }
+    } finally {
+      setIsLoading(false);
     }
+  }, [departments.length]);
+
+  useEffect(() => {
     fetchDepartments();
-  }, []);
+  }, [fetchDepartments]);
 
   const openCreateDialog = () => {
     form.reset({ name: "", color: "#4F46E5", description: "" });
@@ -129,6 +139,7 @@ export function DepartmentsContent() {
           prev.map((d) => (d._id.toString() === tempId ? resData.department : d))
         );
       }
+      invalidateCache(DEPTS_URL);
     } catch (err) {
       setDepartments(prevDepartments);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to save department", variant: "destructive" });
@@ -156,13 +167,14 @@ export function DepartmentsContent() {
         const error = await res.json();
         throw new Error(error.error || "Failed to delete department");
       }
+      invalidateCache(DEPTS_URL);
     } catch (err) {
       setDepartments(prevDepartments);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to delete department", variant: "destructive" });
     }
   };
 
-  if (isLoading) {
+  if (isLoading && departments.length === 0) {
     return (
       <div className="space-y-6" aria-label="Loading departments" aria-busy="true">
         {/* Header */}
@@ -203,13 +215,13 @@ export function DepartmentsContent() {
     );
   }
 
-  if (error) {
+  if (error && departments.length === 0) {
     return (
       <div className="text-center py-12">
         <Building2 className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-semibold mb-2">Failed to load departments</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <Button onClick={() => fetchDepartments(true)}>Retry</Button>
       </div>
     );
   }

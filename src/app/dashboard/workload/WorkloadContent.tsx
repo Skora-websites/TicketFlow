@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { UserAvatar, DepartmentBadge } from "@/components/tickets";
 import { Users, Clock, AlertTriangle, TrendingUp } from "lucide-react";
 import { IUser } from "@/lib/db/models";
+import { fetchWithCache, getCached } from "@/lib/client-cache";
 
 interface WorkloadMember {
   user: IUser & { departmentId?: any };
@@ -18,25 +20,32 @@ interface WorkloadMember {
 }
 
 export function WorkloadContent() {
-  const [workload, setWorkload] = useState<WorkloadMember[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const cachedStats = getCached<{ workload?: WorkloadMember[] }>("/api/stats");
+  const [workload, setWorkload] = useState<WorkloadMember[]>(cachedStats?.workload ?? []);
+  const [isLoading, setIsLoading] = useState(!cachedStats?.workload);
   const [error, setError] = useState("");
 
-  useEffect(() => {
-    async function fetchWorkload() {
-      try {
-        const res = await fetch("/api/stats");
-        if (!res.ok) throw new Error("Failed to fetch workload");
-        const data = await res.json();
-        setWorkload(data.workload || []);
-      } catch (err) {
+  const fetchWorkload = useCallback(async (force = false) => {
+    if (workload.length === 0) setIsLoading(true);
+    setError("");
+    try {
+      const data = await fetchWithCache<{ workload?: WorkloadMember[] }>("/api/stats", undefined, {
+        ttlMs: 30_000,
+        force,
+      });
+      setWorkload(data.workload || []);
+    } catch (err) {
+      if (workload.length === 0) {
         setError(err instanceof Error ? err.message : "Failed to load workload");
-      } finally {
-        setIsLoading(false);
       }
+    } finally {
+      setIsLoading(false);
     }
+  }, [workload.length]);
+
+  useEffect(() => {
     fetchWorkload();
-  }, []);
+  }, [fetchWorkload]);
 
   if (isLoading) {
     return (
@@ -113,15 +122,15 @@ export function WorkloadContent() {
     );
   }
 
-  if (error) {
+  if (error && workload.length === 0) {
     return (
       <div className="text-center py-12">
         <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-semibold mb-2">Failed to load workload</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <button onClick={() => window.location.reload()} className="text-primary hover:underline">
+        <Button onClick={() => fetchWorkload(true)}>
           Retry
-        </button>
+        </Button>
       </div>
     );
   }

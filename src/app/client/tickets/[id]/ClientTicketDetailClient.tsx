@@ -9,10 +9,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { ArrowLeft, AlertTriangle, TicketCheck, Trash2 } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
 import type { ITicket, IComment, IUser } from "@/lib/db/models";
 
 export function ClientTicketDetailPage() {
   const { id } = useParams();
+  const { data: session } = useSession();
 
   const [ticket, setTicket] = useState<(ITicket & {
     requesterId?: IUser;
@@ -22,45 +24,80 @@ export function ClientTicketDetailPage() {
   }) | null>(null);
   const [comments, setComments] = useState<(IComment & { authorId?: IUser })[]>([]);
   const [chatParticipants, setChatParticipants] = useState<ChatParticipant[]>([]);
-  const [currentUser, setCurrentUser] = useState<{ id: string; role: string; departmentId?: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ id: string; role: string; departmentId?: string } | null>(() => {
+    if (session?.user?.id) {
+      return {
+        id: session.user.id,
+        role: session.user.role,
+        departmentId: (session.user as any).departmentId,
+      };
+    }
+    return null;
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
 
   const loadData = useCallback(async () => {
     try {
-      const [ticketRes, commentsRes, userRes] = await Promise.all([
-        fetch(`/api/tickets/${id}`),
-        fetch(`/api/tickets/${id}/comments`),
-        fetch("/api/auth/me"),
-      ]);
-
-      if (!ticketRes.ok) {
-        if (ticketRes.status === 404) throw new Error("This ticket no longer exists");
-        throw new Error("Failed to fetch ticket");
-      }
-
-      const ticketData = await ticketRes.json();
-      const commentsData = await commentsRes.json();
-      const userData = await userRes.json();
-
-      setTicket(ticketData.ticket);
-      const rawComments = (commentsData.comments || []) as (IComment & { authorId?: IUser })[];
-      const seen = new Set<string>();
-      const dedupedComments = rawComments.filter((c) => {
-        const idStr = c._id?.toString();
-        if (!idStr || seen.has(idStr)) return false;
-        seen.add(idStr);
-        return true;
+      // 1. Fetch ticket immediately so main content renders without waiting
+      const ticketPromise = fetch(`/api/tickets/${id}`).then(async (res) => {
+        if (!res.ok) {
+          if (res.status === 404) throw new Error("This ticket no longer exists");
+          throw new Error("Failed to fetch ticket");
+        }
+        const data = await res.json();
+        setTicket(data.ticket);
+        setChatParticipants(data.chatParticipants ?? []);
+        return data.ticket;
       });
-      setComments(dedupedComments);
-      setChatParticipants(ticketData.chatParticipants ?? []);
-      setCurrentUser(userData.user);
+
+      // 2. Fetch comments progressively in parallel
+      const commentsPromise = fetch(`/api/tickets/${id}/comments`).then(async (res) => {
+        if (!res.ok) return;
+        const data = await res.json();
+        const rawComments = (data.comments || []) as (IComment & { authorId?: IUser })[];
+        const seen = new Set<string>();
+        const deduped = rawComments.filter((c) => {
+          const idStr = c._id?.toString();
+          if (!idStr || seen.has(idStr)) return false;
+          seen.add(idStr);
+          return true;
+        });
+        setComments(deduped);
+      }).catch(() => {
+        // non-critical
+      });
+
+      // 3. User info from session or /api/auth/me fallback
+      const userPromise = (async () => {
+        if (session?.user?.id) {
+          setCurrentUser({
+            id: session.user.id,
+            role: session.user.role,
+            departmentId: (session.user as any).departmentId,
+          });
+          return;
+        }
+        try {
+          const res = await fetch("/api/auth/me");
+          if (res.ok) {
+            const data = await res.json();
+            setCurrentUser(data.user);
+          }
+        } catch {
+          // ignore
+        }
+      })();
+
+      // Render the ticket as soon as the ticket record arrives
+      await ticketPromise;
+      setIsLoading(false);
+      await Promise.allSettled([commentsPromise, userPromise]);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load ticket");
-    } finally {
       setIsLoading(false);
     }
-  }, [id]);
+  }, [id, session?.user]);
 
   useEffect(() => {
     loadData();

@@ -1,13 +1,29 @@
 "use client";
 
-import { SessionProvider } from "next-auth/react";
-import { ThemeProvider } from "next-themes";
+import { SessionProvider, useSession } from "next-auth/react";
+import { ThemeProvider, useTheme } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
-import { ReactNode } from "react";
+import { ReactNode, useEffect } from "react";
 
 import { usePathname } from "next/navigation";
 
 import { ColorThemeProvider } from "@/components/ColorThemeProvider";
+
+function AccountThemeSync() {
+  const { data: session } = useSession();
+  const { theme, setTheme } = useTheme();
+
+  useEffect(() => {
+    const accountTheme = session?.user?.theme;
+    if (accountTheme && (accountTheme === "dark" || accountTheme === "light" || accountTheme === "system")) {
+      if (theme !== accountTheme) {
+        setTheme(accountTheme);
+      }
+    }
+  }, [session?.user?.id, session?.user?.theme, setTheme, theme]);
+
+  return null;
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   const pathname = usePathname();
@@ -22,6 +38,7 @@ export function Providers({ children }: { children: ReactNode }) {
         forcedTheme={isApp ? undefined : "dark"}
       >
         <ColorThemeProvider isApp={Boolean(isApp)}>
+          <AccountThemeSync />
           {children}
           <Toaster />
         </ColorThemeProvider>

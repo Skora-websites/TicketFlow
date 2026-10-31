@@ -62,6 +62,8 @@ export interface IUser extends Document {
   /** The manager this staff member reports to (optional, set by superadmin). */
   reportingManagerId?: mongoose.Types.ObjectId;
   active: boolean;
+  theme?: "dark" | "light" | "system";
+  colorTheme?: "purple" | "rose" | "lime" | "brown";
   createdAt: Date;
   passwordResetToken?: string;
   passwordResetExpires?: Date;
@@ -170,6 +172,8 @@ const UserSchema = new Schema<IUser>({
   reportingManagerId: { type: Schema.Types.ObjectId, ref: "User", default: null },
   departmentId: { type: Schema.Types.ObjectId, ref: "Department" },
   active: { type: Boolean, default: true },
+  theme: { type: String, enum: ["dark", "light", "system"], default: "dark" },
+  colorTheme: { type: String, enum: ["purple", "rose", "lime", "brown"], default: "purple" },
   passwordResetToken: { type: String },
   passwordResetExpires: { type: Date },
   sessionVersion: { type: Number, default: 0 },

@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import { fetchWithCache } from "@/lib/client-cache";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -102,45 +103,55 @@ export function QueueContent() {
     }
   };
 
-  useEffect(() => {
-    async function fetchData() {
-      try {
-        // Managers pick from their own team + managers (dept-scoped server
-        // side); super admins only ever forward to a manager.
-        const [ticketsRes, teamRes, managersRes] = await Promise.all([
-          fetch("/api/tickets?view=unassigned&limit=50"),
-          isSuperAdmin ? Promise.resolve(null) : fetch("/api/users?role=team&limit=100"),
-          fetch("/api/users?role=manager&limit=100"),
-        ]);
-
-        if (!ticketsRes.ok) throw new Error("Failed to fetch tickets");
-        if (teamRes && !teamRes.ok) throw new Error("Failed to fetch team members");
-        if (!managersRes.ok) throw new Error("Failed to fetch managers");
-
-        const ticketsData = await ticketsRes.json();
-        const teamData = teamRes ? await teamRes.json() : { users: [] };
-        const managersData = await managersRes.json();
-
-        const seen = new Set<string>();
-        const assignable = [...(teamData.users || []), ...(managersData.users || [])].filter(
-          (u: IUser) => {
-            const id = u._id.toString();
-            if (seen.has(id)) return false;
-            seen.add(id);
-            return true;
-          }
-        );
-
-        setTickets(ticketsData.tickets);
-        setTeamMembers(assignable);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load queue");
-      } finally {
+  const fetchData = useCallback(async () => {
+    setError("");
+    try {
+      // 1. Fetch tickets and render immediately without waiting for users
+      const ticketsPromise = fetch("/api/tickets?view=unassigned&limit=50").then(async (res) => {
+        if (!res.ok) throw new Error("Failed to fetch tickets");
+        const data = await res.json();
+        setTickets(data.tickets ?? []);
         setIsLoading(false);
-      }
+        return data;
+      });
+
+      // 2. Fetch assignable users progressively with client cache
+      const usersPromise = (async () => {
+        try {
+          const [teamData, managersData] = await Promise.all([
+            isSuperAdmin
+              ? Promise.resolve({ users: [] })
+              : fetchWithCache<{ users: IUser[] }>("/api/users?role=team&limit=100", undefined, { ttlMs: 45_000 }),
+            fetchWithCache<{ users: IUser[] }>("/api/users?role=manager&limit=100", undefined, { ttlMs: 45_000 }),
+          ]);
+
+          const seen = new Set<string>();
+          const assignable = [...(teamData.users || []), ...(managersData.users || [])].filter(
+            (u: IUser) => {
+              const id = u._id.toString();
+              if (seen.has(id)) return false;
+              seen.add(id);
+              return true;
+            }
+          );
+          setTeamMembers(assignable);
+        } catch {
+          // non-critical for table render
+        }
+      })();
+
+      await ticketsPromise;
+      await usersPromise;
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to load queue");
+    } finally {
+      setIsLoading(false);
     }
-    fetchData();
   }, [isSuperAdmin]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const handleAssign = async () => {
     if (!selectedTicketId || !selectedAssigneeId) return;
@@ -228,7 +239,7 @@ export function QueueContent() {
         <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-semibold mb-2">Failed to load queue</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <Button onClick={() => fetchData()}>Retry</Button>
       </div>
     );
   }

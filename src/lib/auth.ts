@@ -162,6 +162,12 @@ export const authConfig: NextAuthConfig = {
         if ((updateSession as { name?: string }).name) {
           token.name = (updateSession as { name?: string }).name;
         }
+        if ((updateSession as { theme?: "dark" | "light" | "system" }).theme) {
+          token.theme = (updateSession as { theme?: "dark" | "light" | "system" }).theme;
+        }
+        if ((updateSession as { colorTheme?: "purple" | "rose" | "lime" | "brown" }).colorTheme) {
+          token.colorTheme = (updateSession as { colorTheme?: "purple" | "rose" | "lime" | "brown" }).colorTheme;
+        }
       }
 
       if (user?.email) {
@@ -176,10 +182,14 @@ export const authConfig: NextAuthConfig = {
           token.ticketAccess = dbUser.ticketAccess ?? "department";
           token.active = dbUser.active !== false;
           token.sessionVersion = dbUser.sessionVersion ?? 0;
+          token.theme = dbUser.theme ?? "dark";
+          token.colorTheme = dbUser.colorTheme ?? "purple";
           token.image = toAvatarUrl(dbUser.avatar, dbUser._id.toString()) || (user as { image?: string }).image || null;
         } else if (user.id) {
           token.id = user.id;
           token.active = true;
+          token.theme = "dark";
+          token.colorTheme = "purple";
           token.image = (user as { image?: string }).image || null;
         }
         if ((user as { remember?: boolean }).remember) {
@@ -203,7 +213,7 @@ export const authConfig: NextAuthConfig = {
               // treats a missing field as 0, which would instantly kill the
               // session of anyone whose password was ever changed/reset (their
               // JWT carries the real, bumped version).
-              .select("role departmentId ticketAccess active sessionVersion avatar")
+              .select("role departmentId ticketAccess active sessionVersion avatar theme colorTheme")
               .lean();
             sessionUserCache.set(token.id, { checkedAt: now });
             if (sessionUserCache.size > 1000) {
@@ -229,6 +239,8 @@ export const authConfig: NextAuthConfig = {
                 token.role = dbUser.role;
                 token.departmentId = dbUser.departmentId?.toString();
                 token.ticketAccess = dbUser.ticketAccess ?? "department";
+                token.theme = dbUser.theme ?? "dark";
+                token.colorTheme = dbUser.colorTheme ?? "purple";
                 if (dbUser.avatar !== undefined) {
                   token.image = toAvatarUrl(dbUser.avatar, dbUser._id.toString());
                 }
@@ -263,6 +275,8 @@ export const authConfig: NextAuthConfig = {
         session.user.ticketAccess =
           token.ticketAccess === "assigned" ? "assigned" : "department";
         session.user.image = (token.image as string) ?? null;
+        session.user.theme = token.theme as "dark" | "light" | "system" | undefined;
+        session.user.colorTheme = token.colorTheme as "purple" | "rose" | "lime" | "brown" | undefined;
       }
       return session;
     },

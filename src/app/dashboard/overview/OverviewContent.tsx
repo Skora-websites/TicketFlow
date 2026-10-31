@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -45,6 +45,8 @@ import { cn } from "@/lib/utils";
 import { statusColors, priorityColors } from "@/lib/charts";
 import { ChartTooltip } from "@/components/charts/ChartTooltip";
 
+import { fetchWithCache, getCached } from "@/lib/client-cache";
+
 interface ChartCardProps {
   title: string;
   description?: string;
@@ -80,34 +82,66 @@ export function OverviewContent() {
   // Bumped by the incoming-transfers card after approve/reject so the stats
   // grid re-fetches (approving moves tickets between departments/queues).
   const [statsVersion, setStatsVersion] = useState(0);
-  const [stats, setStats] = useState({
+
+  const cachedStats = getCached<{
     overview: {
-      total: 0,
-      open: 0,
-      in_progress: 0,
-      on_hold: 0,
-      resolved: 0,
-      closed: 0,
-      unassigned: 0,
-      avgResolutionDays: 0,
-      avgResolutionHours: 0,
-    },
+      total: number;
+      open: number;
+      in_progress: number;
+      on_hold: number;
+      resolved: number;
+      closed: number;
+      unassigned: number;
+      avgResolutionDays: number;
+      avgResolutionHours: number;
+    };
     charts: {
-      byStatus: [] as { status: string; count: number }[],
-      byPriority: [] as { priority: string; count: number }[],
-      byDepartment: [] as { department: string; count: number }[],
-      weeklyTrend: [] as { week: string; count: number }[],
-    },
-    workload: [] as {
+      byStatus: { status: string; count: number }[];
+      byPriority: { priority: string; count: number }[];
+      byDepartment: { department: string; count: number }[];
+      weeklyTrend: { week: string; count: number }[];
+    };
+    workload: {
       user: { name: string };
       open: number;
       in_progress: number;
       on_hold: number;
       total: number;
-    }[],
-    contributions: [] as { date: string; count: number }[],
-  });
-  const [isLoading, setIsLoading] = useState(true);
+    }[];
+    contributions: { date: string; count: number }[];
+  }>("/api/stats");
+
+  const [stats, setStats] = useState(
+    cachedStats || {
+      overview: {
+        total: 0,
+        open: 0,
+        in_progress: 0,
+        on_hold: 0,
+        resolved: 0,
+        closed: 0,
+        unassigned: 0,
+        avgResolutionDays: 0,
+        avgResolutionHours: 0,
+      },
+      charts: {
+        byStatus: [] as { status: string; count: number }[],
+        byPriority: [] as { priority: string; count: number }[],
+        byDepartment: [] as { department: string; count: number }[],
+        weeklyTrend: [] as { week: string; count: number }[],
+      },
+      workload: [] as {
+        user: { name: string };
+        open: number;
+        in_progress: number;
+        on_hold: number;
+        total: number;
+      }[],
+      contributions: [] as { date: string; count: number }[],
+    }
+  );
+  const [isLoading, setIsLoading] = useState(!cachedStats);
+  const [isRecentLoading, setIsRecentLoading] = useState(true);
   const [error, setError] = useState("");
   const [recentTickets, setRecentTickets] = useState<any[]>([]);
   const [selectedHeatmapDate, setSelectedHeatmapDate] = useState<string | null>(null);
@@ -161,32 +195,43 @@ export function OverviewContent() {
     [priorityChartData]
   );
 
-  useEffect(() => {
-    async function fetchStats() {
-      try {
-        const res = await fetch("/api/stats");
-        if (!res.ok) throw new Error("Failed to fetch stats");
-        const data = await res.json();
+  const fetchDashboard = useCallback(async () => {
+    setError("");
+    const force = statsVersion > 0;
+
+    // Parallel progressive fetch: stats & recent tickets load independently
+    const statsPromise = fetchWithCache<typeof stats>("/api/stats", undefined, { ttlMs: 30_000, force })
+      .then((data) => {
         setStats(data);
-
-        try {
-          const tRes = await fetch("/api/tickets?limit=5");
-          if (tRes.ok) {
-            const tData = await tRes.json();
-            setRecentTickets(tData.tickets ?? []);
-          }
-        } catch {
-          // recent tickets are non-critical; ignore failure
-        }
-
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Failed to load dashboard");
-      } finally {
         setIsLoading(false);
-      }
-    }
-    fetchStats();
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load dashboard");
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+
+    const ticketsPromise = fetch("/api/tickets?limit=5")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((tData) => {
+        if (tData?.tickets) {
+          setRecentTickets(tData.tickets);
+        }
+      })
+      .catch(() => {
+        // recent tickets are non-critical
+      })
+      .finally(() => {
+        setIsRecentLoading(false);
+      });
+
+    await Promise.allSettled([statsPromise, ticketsPromise]);
   }, [statsVersion]);
+
+  useEffect(() => {
+    fetchDashboard();
+  }, [fetchDashboard]);
 
   // Skeleton mirrors the role's real layout so the page doesn't shift when
   // data lands: same header, same horizontal metrics group, top banner quick create grid,
@@ -379,7 +424,7 @@ export function OverviewContent() {
         <AlertTriangle className="w-12 h-12 text-destructive mx-auto mb-4" />
         <h2 className="text-xl font-semibold mb-2">Failed to load dashboard</h2>
         <p className="text-muted-foreground mb-4">{error}</p>
-        <Button onClick={() => window.location.reload()}>Retry</Button>
+        <Button onClick={() => fetchDashboard()}>Retry</Button>
       </div>
     );
   }
@@ -545,45 +590,58 @@ export function OverviewContent() {
         </div>
 
         {/* 2 Featured Active Tickets styled in Tabela format */}
-        {recentTickets.slice(0, 2).map((t) => (
-          <div key={t._id} className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md">
-            <div className="flex items-center justify-between border-b border-border/70 pb-3">
-              <span className="font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                {t.ticketNumber}
-              </span>
-              <Badge variant="outline" className={cn(
-                "rounded-full px-3 py-0.5 text-xs font-semibold",
-                t.status === "open" && "status-open",
-                t.status === "in_progress" && "status-in_progress",
-                t.status === "on_hold" && "status-on_hold",
-                t.status === "resolved" && "status-resolved",
-                t.status === "closed" && "status-closed"
-              )}>
-                {t.status.replace("_", " ")}
-              </Badge>
-            </div>
-            <div className="grid grid-cols-2 gap-3 pt-3">
-              <div className="border-r border-border/70 pr-3 space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Customer</p>
-                <p className="truncate text-xs font-semibold text-foreground">{t.requesterId?.name || "Customer"}</p>
-                <p className="truncate text-[11px] text-muted-foreground">{t.requesterId?.email || "—"}</p>
+        {isRecentLoading ? (
+          <>
+            <TicketCardSkeleton variant="default" />
+            <TicketCardSkeleton variant="default" />
+          </>
+        ) : recentTickets.length > 0 ? (
+          recentTickets.slice(0, 2).map((t) => (
+            <div key={t._id} className="rounded-2xl border border-border bg-card p-5 shadow-sm transition-all hover:shadow-md">
+              <div className="flex items-center justify-between border-b border-border/70 pb-3">
+                <span className="font-mono text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                  {t.ticketNumber}
+                </span>
+                <Badge variant="outline" className={cn(
+                  "rounded-full px-3 py-0.5 text-xs font-semibold",
+                  t.status === "open" && "status-open",
+                  t.status === "in_progress" && "status-in_progress",
+                  t.status === "on_hold" && "status-on_hold",
+                  t.status === "resolved" && "status-resolved",
+                  t.status === "closed" && "status-closed"
+                )}>
+                  {t.status.replace("_", " ")}
+                </Badge>
               </div>
-              <div className="space-y-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Details</p>
-                <h4 className="truncate text-xs font-bold text-foreground">{t.title}</h4>
-                <p className="text-[11px] text-muted-foreground capitalize">Priority: <span className="font-semibold text-foreground">{t.priority}</span></p>
+              <div className="grid grid-cols-2 gap-3 pt-3">
+                <div className="border-r border-border/70 pr-3 space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Customer</p>
+                  <p className="truncate text-xs font-semibold text-foreground">{t.requesterId?.name || "Customer"}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">{t.requesterId?.email || "—"}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Details</p>
+                  <h4 className="truncate text-xs font-bold text-foreground">{t.title}</h4>
+                  <p className="text-[11px] text-muted-foreground capitalize">Priority: <span className="font-semibold text-foreground">{t.priority}</span></p>
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3">
+                <span className="text-[11px] font-mono text-muted-foreground">{t.category}</span>
+                <Link href={ticketHref(t)}>
+                  <Button size="sm" className="h-8 rounded-xl bg-white px-3.5 text-xs font-bold text-[#121212] shadow-xs hover:bg-[#E9E7E8]">
+                    View Ticket
+                  </Button>
+                </Link>
               </div>
             </div>
-            <div className="mt-4 flex items-center justify-between border-t border-border/70 pt-3">
-              <span className="text-[11px] font-mono text-muted-foreground">{t.category}</span>
-              <Link href={ticketHref(t)}>
-                <Button size="sm" className="h-8 rounded-xl bg-white px-3.5 text-xs font-bold text-[#121212] shadow-xs hover:bg-[#E9E7E8]">
-                  View Ticket
-                </Button>
-              </Link>
-            </div>
+          ))
+        ) : (
+          <div className="col-span-1 lg:col-span-2 flex flex-col items-center justify-center rounded-2xl border border-dashed border-border bg-card/40 p-6 text-center text-muted-foreground">
+            <Inbox className="h-8 w-8 mb-2 opacity-40 text-muted-foreground" />
+            <p className="text-xs font-semibold text-foreground">No recent tickets</p>
+            <p className="text-[11px] text-muted-foreground mt-0.5">Tickets created or updated recently will appear here.</p>
           </div>
-        ))}
+        )}
       </div>
 
       {/* Charts grid — two cards per row */}

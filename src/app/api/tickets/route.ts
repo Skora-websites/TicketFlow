@@ -21,7 +21,7 @@ import {
 
 const ticketQuerySchema = z.object({
   page: z.coerce.number().positive().default(1),
-  limit: z.coerce.number().positive().max(50).default(20),
+  limit: z.coerce.number().positive().max(100).default(20),
   status: z.enum(["open", "in_progress", "on_hold", "resolved", "closed"]).optional(),
   priority: z.enum(["low", "medium", "high", "urgent"]).optional(),
   // Categories are dynamic (super admins can add more) — validated loosely

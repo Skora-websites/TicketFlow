@@ -297,7 +297,17 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant={mounted && theme === "dark" ? "default" : "outline"}
-                onClick={() => setTheme("dark")}
+                onClick={async () => {
+                  setTheme("dark");
+                  try {
+                    await fetch("/api/users/me", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ theme: "dark" }),
+                    });
+                    await update({ theme: "dark" });
+                  } catch {}
+                }}
                 className="w-full font-semibold flex items-center justify-center gap-2"
               >
                 <Moon className="h-4 w-4 shrink-0" />
@@ -306,7 +316,17 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant={mounted && theme === "light" ? "default" : "outline"}
-                onClick={() => setTheme("light")}
+                onClick={async () => {
+                  setTheme("light");
+                  try {
+                    await fetch("/api/users/me", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ theme: "light" }),
+                    });
+                    await update({ theme: "light" });
+                  } catch {}
+                }}
                 className="w-full font-semibold flex items-center justify-center gap-2"
               >
                 <Sun className="h-4 w-4 shrink-0" />
@@ -315,7 +335,17 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant={mounted && theme === "system" ? "default" : "outline"}
-                onClick={() => setTheme("system")}
+                onClick={async () => {
+                  setTheme("system");
+                  try {
+                    await fetch("/api/users/me", {
+                      method: "PATCH",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ theme: "system" }),
+                    });
+                    await update({ theme: "system" });
+                  } catch {}
+                }}
                 className="w-full font-semibold flex items-center justify-center gap-2"
               >
                 <Laptop className="h-4 w-4 shrink-0" />
