@@ -37,6 +37,8 @@ import {
 } from "@/components/ui/responsive-sheet";
 import { Label } from "@/components/ui/label";
 
+import { TicketContextMenu } from "@/components/productivity";
+
 interface TicketWithRelations {
   _id: string;
   ticketNumber: string;
@@ -56,11 +58,14 @@ interface TicketWithRelations {
 
 export function QueueContent() {
   const { toast } = useToast();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
+  const currentUserRole = session?.user?.role;
 
   // Queue page admits managers and super admins. Managers assign within
   // their department; super admins only FORWARD to a manager (server
   // enforces the same split on PATCH).
-  const isSuperAdmin = useSession().data?.user?.role === "super_admin";
+  const isSuperAdmin = currentUserRole === "super_admin";
 
   const [tickets, setTickets] = useState<TicketWithRelations[]>([]);
   const [teamMembers, setTeamMembers] = useState<IUser[]>([]);
@@ -338,111 +343,122 @@ export function QueueContent() {
                 const assignee = ticket.assigneeId;
                 const dept = ticket.departmentId;
                 return (
-                  <li
+                  <TicketContextMenu
                     key={ticket._id}
-                    className="flex flex-col gap-3 p-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4"
+                    ticket={ticket as any}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    teamMembers={teamMembers.map((m) => ({ _id: m._id.toString(), name: m.name }))}
+                    onStatusChange={() => fetchData()}
+                    onPriorityChange={() => fetchData()}
+                    onAssign={() => fetchData()}
+                    onDelete={() => fetchData()}
                   >
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <TicketNumber ticketNumber={ticket.ticketNumber} className="text-xs" />
-                        <PriorityBadge priority={ticket.priority} />
-                        <span className="sm:hidden">
-                          <StatusBadge status={ticket.status} />
-                        </span>
-                        {dept && (
-                          <span
-                            className="hidden sm:inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
-                            style={{ borderColor: `${dept.color}55`, color: dept.color, backgroundColor: `${dept.color}14` }}
-                          >
-                            {dept.name}
+                    <li
+                      className="flex flex-col gap-3 p-4 transition-colors hover:bg-muted/40 sm:flex-row sm:items-center sm:gap-4"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <TicketNumber ticketNumber={ticket.ticketNumber} className="text-xs" />
+                          <PriorityBadge priority={ticket.priority} />
+                          <span className="sm:hidden">
+                            <StatusBadge status={ticket.status} />
                           </span>
+                          {dept && (
+                            <span
+                              className="hidden sm:inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold"
+                              style={{ borderColor: `${dept.color}55`, color: dept.color, backgroundColor: `${dept.color}14` }}
+                            >
+                              {dept.name}
+                            </span>
+                          )}
+                        </div>
+                        <Link
+                          href={ticketHref(ticket)}
+                          className="mt-1 block truncate font-medium text-foreground hover:text-primary"
+                        >
+                          {ticket.title}
+                        </Link>
+                        <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
+                          <CategoryBadge category={ticket.category} />
+                          <span className="font-mono">
+                            {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3 w-full sm:w-auto">
+                        {assignee ? (
+                          <UserAvatar name={assignee.name} role={assignee.role as any} size="sm" />
+                        ) : (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => {
+                                setSelectedTicketId(ticket._id);
+                                setSelectedAssigneeId("");
+                              }}
+                              className="w-full sm:w-auto gap-2 h-9 sm:h-8 font-semibold"
+                            >
+                              <UserPlus className="h-4 w-4" aria-hidden />
+                              {isSuperAdmin ? "Forward" : "Assign"}
+                            </Button>
+                            {/* Deny: pending incoming transfer (addressed to this
+                                manager or to an agent in this department).
+                                Dormant while transfers are disabled. */}
+                            {TRANSFERS_ENABLED && ticket.transfer?.status === "pending" && (
+                              confirmDenyId === ticket._id ? (
+                                <div className="flex flex-col gap-1.5">
+                                  <textarea
+                                    value={denyReason}
+                                    onChange={(e) => setDenyReason(e.target.value)}
+                                    rows={2}
+                                    maxLength={500}
+                                    placeholder="Why deny? (optional, sent to sender)"
+                                    aria-label="Reason for denying the transfer"
+                                    className="w-64 resize-none rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
+                                  />
+                                  <div className="flex items-center justify-end gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={busyId === ticket._id}
+                                      onClick={() => {
+                                        setConfirmDenyId(null);
+                                        setDenyReason("");
+                                      }}
+                                    >
+                                      Cancel
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="destructive"
+                                      loading={busyId === ticket._id}
+                                      onClick={() => handleDeny(ticket._id)}
+                                    >
+                                      <Undo2 className="mr-1 h-3.5 w-3.5" aria-hidden />
+                                      Confirm deny
+                                    </Button>
+                                  </div>
+                                </div>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="destructive-outline"
+                                  disabled={busyId === ticket._id}
+                                  onClick={() => setConfirmDenyId(ticket._id)}
+                                  className="gap-1.5"
+                                >
+                                  <X className="h-3.5 w-3.5" aria-hidden />
+                                  Deny
+                                </Button>
+                              )
+                            )}
+                          </>
                         )}
                       </div>
-                      <Link
-                        href={ticketHref(ticket)}
-                        className="mt-1 block truncate font-medium text-foreground hover:text-primary"
-                      >
-                        {ticket.title}
-                      </Link>
-                      <div className="mt-1 flex items-center gap-2 text-xs text-muted-foreground">
-                        <CategoryBadge category={ticket.category} />
-                        <span className="font-mono">
-                          {formatDistanceToNow(new Date(ticket.createdAt), { addSuffix: true })}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="flex shrink-0 items-center gap-3 w-full sm:w-auto">
-                      {assignee ? (
-                        <UserAvatar name={assignee.name} role={assignee.role as any} size="sm" />
-                      ) : (
-                        <>
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={() => {
-                              setSelectedTicketId(ticket._id);
-                              setSelectedAssigneeId("");
-                            }}
-                            className="w-full sm:w-auto gap-2 h-9 sm:h-8 font-semibold"
-                          >
-                            <UserPlus className="h-4 w-4" aria-hidden />
-                            {isSuperAdmin ? "Forward" : "Assign"}
-                          </Button>
-                          {/* Deny: pending incoming transfer (addressed to this
-                              manager or to an agent in this department).
-                              Dormant while transfers are disabled. */}
-                          {TRANSFERS_ENABLED && ticket.transfer?.status === "pending" && (
-                            confirmDenyId === ticket._id ? (
-                              <div className="flex flex-col gap-1.5">
-                                <textarea
-                                  value={denyReason}
-                                  onChange={(e) => setDenyReason(e.target.value)}
-                                  rows={2}
-                                  maxLength={500}
-                                  placeholder="Why deny? (optional, sent to sender)"
-                                  aria-label="Reason for denying the transfer"
-                                  className="w-64 resize-none rounded-lg border border-border bg-background px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-1 focus:ring-primary/40"
-                                />
-                                <div className="flex items-center justify-end gap-1">
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={busyId === ticket._id}
-                                    onClick={() => {
-                                      setConfirmDenyId(null);
-                                      setDenyReason("");
-                                    }}
-                                  >
-                                    Cancel
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="destructive"
-                                    loading={busyId === ticket._id}
-                                    onClick={() => handleDeny(ticket._id)}
-                                  >
-                                    <Undo2 className="mr-1 h-3.5 w-3.5" aria-hidden />
-                                    Confirm deny
-                                  </Button>
-                                </div>
-                              </div>
-                            ) : (
-                              <Button
-                                size="sm"
-                                variant="destructive-outline"
-                                disabled={busyId === ticket._id}
-                                onClick={() => setConfirmDenyId(ticket._id)}
-                                className="gap-1.5"
-                              >
-                                <X className="h-3.5 w-3.5" aria-hidden />
-                                Deny
-                              </Button>
-                            )
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </li>
+                    </li>
+                  </TicketContextMenu>
                 );
               })}
             </ul>

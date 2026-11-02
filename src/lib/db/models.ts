@@ -564,3 +564,36 @@ const AgentAvailabilitySchema = new Schema<IAgentAvailability>(
 export const AgentAvailability: Model<IAgentAvailability> =
   (mongoose.models.AgentAvailability as Model<IAgentAvailability>) ||
   mongoose.model<IAgentAvailability>("AgentAvailability", AgentAvailabilitySchema);
+
+/* ------------------- Auth Session Tracking Schema ----------------- */
+
+export interface IAuthSession extends Document {
+  sessionId: string;
+  userId: mongoose.Types.ObjectId;
+  createdAt: Date;
+  expiresAt: Date;
+  lastActiveAt: Date;
+  isValid: boolean;
+  userAgent?: string;
+  ipAddress?: string;
+}
+
+const AuthSessionSchema = new Schema<IAuthSession>(
+  {
+    sessionId: { type: String, required: true, unique: true, index: true },
+    userId: { type: Schema.Types.ObjectId, ref: "User", required: true, index: true },
+    createdAt: { type: Date, default: Date.now, required: true },
+    expiresAt: { type: Date, required: true },
+    lastActiveAt: { type: Date, default: Date.now, required: true },
+    isValid: { type: Boolean, default: true, required: true, index: true },
+    userAgent: { type: String },
+    ipAddress: { type: String },
+  },
+  { timestamps: false }
+);
+
+AuthSessionSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+
+export const AuthSession: Model<IAuthSession> =
+  (mongoose.models.AuthSession as Model<IAuthSession>) ||
+  mongoose.model<IAuthSession>("AuthSession", AuthSessionSchema);

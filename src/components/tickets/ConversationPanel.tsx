@@ -9,6 +9,7 @@ import { Timestamp } from "@/components/ui/timestamp";
 import { cn } from "@/lib/utils";
 import { useDraftResume } from "@/lib/drafts/context";
 import { CommentDraftData } from "@/lib/drafts/types";
+import { MessageContextMenu } from "@/components/productivity";
 
 type AnyComment = CommentModel & { authorId?: UserType };
 
@@ -286,6 +287,25 @@ export function ConversationPanel({
     }
   };
 
+  const retryPending = async (localId: string) => {
+    const item = pending.find((m) => m.localId === localId);
+    if (!item) return;
+    setPending((p) => p.map((m) => (m.localId === localId ? { ...m, state: "sending" } : m)));
+    try {
+      await onAddComment(item.body, undefined, item.visibility);
+      setPending((p) => p.filter((m) => m.localId !== localId));
+    } catch {
+      setPending((p) => p.map((m) => (m.localId === localId ? { ...m, state: "failed" } : m)));
+    }
+  };
+
+  const handleReplyTo = (body: string, author: string) => {
+    setReplyText((prev) => {
+      const quote = `> @${author}: "${body.slice(0, 100)}${body.length > 100 ? "…" : ""}"\n\n`;
+      return prev ? `${quote}${prev}` : quote;
+    });
+  };
+
   const startEdit = (comment: CommentModel) => {
     setEditingId(comment._id.toString());
     setEditText(comment.body);
@@ -483,159 +503,199 @@ export function ConversationPanel({
           if (isOwn) {
             // MY message: right-aligned bubble with receipts.
             return (
-              <div key={commentId} className="flex justify-end py-1.5">
-                <div
-                  className={cn(
-                    "group max-w-[85%] rounded-xl rounded-br-xs px-3.5 py-2.5",
-                    isInternal
-                      ? "border border-warning/40 bg-warning-muted text-warning-foreground"
-                      : "bg-primary text-primary-foreground shadow-xs"
-                  )}
-                  aria-label={`Your message${isInternal ? " (internal)" : ""}`}
-                >
-                  {isInternal && (
-                    <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-warning">
-                      <Lock className="h-3 w-3" aria-hidden /> Internal
-                    </span>
-                  )}
-                  {isEditing ? (
-                    <div className="space-y-2">
-                      <textarea
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        className="w-full resize-none rounded-lg border border-border bg-background p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-                        rows={3}
-                        disabled={savingEdit}
-                        aria-label="Edit message"
-                      />
-                      {editError && <p className="text-xs text-destructive" role="alert">{editError}</p>}
-                      <div className="flex justify-end gap-2">
-                        <Button type="button" variant="ghost" size="sm" onClick={cancelEdit} disabled={savingEdit}>
-                          <X className="mr-1 h-3.5 w-3.5" /> Cancel
-                        </Button>
-                        <Button type="button" size="sm" onClick={() => saveEdit(comment)} loading={savingEdit} disabled={!editText.trim()}>
-                          <Check className="mr-1 h-3.5 w-3.5" /> Save
-                        </Button>
+              <MessageContextMenu
+                key={commentId}
+                message={comment as any}
+                ticketId={ticketId}
+                ticketStatus={ticketStatus}
+                currentUserId={currentUserId}
+                currentUserRole={currentUserRole}
+                canEdit={canEdit}
+                canDelete={canDelete}
+                onEdit={() => startEdit(comment)}
+                onDelete={() => deleteComment(comment)}
+                onReply={handleReplyTo}
+              >
+                <div className="flex justify-end py-1.5">
+                  <div
+                    className={cn(
+                      "group max-w-[85%] rounded-xl rounded-br-xs px-3.5 py-2.5",
+                      isInternal
+                        ? "border border-warning/40 bg-warning-muted text-warning-foreground"
+                        : "bg-primary text-primary-foreground shadow-xs"
+                    )}
+                    aria-label={`Your message${isInternal ? " (internal)" : ""}`}
+                  >
+                    {isInternal && (
+                      <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-warning">
+                        <Lock className="h-3 w-3" aria-hidden /> Internal
+                      </span>
+                    )}
+                    {isEditing ? (
+                      <div className="space-y-2">
+                        <textarea
+                          value={editText}
+                          onChange={(e) => setEditText(e.target.value)}
+                          className="w-full resize-none rounded-lg border border-border bg-background p-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+                          rows={3}
+                          disabled={savingEdit}
+                          aria-label="Edit message"
+                        />
+                        {editError && <p className="text-xs text-destructive" role="alert">{editError}</p>}
+                        <div className="flex justify-end gap-2">
+                          <Button type="button" variant="ghost" size="sm" onClick={cancelEdit} disabled={savingEdit}>
+                            <X className="mr-1 h-3.5 w-3.5" /> Cancel
+                          </Button>
+                          <Button type="button" size="sm" onClick={() => saveEdit(comment)} loading={savingEdit} disabled={!editText.trim()}>
+                            <Check className="mr-1 h-3.5 w-3.5" /> Save
+                          </Button>
+                        </div>
                       </div>
-                    </div>
-                  ) : (
-                    <>
-                      <p className="whitespace-pre-wrap text-sm leading-relaxed">{comment.body}</p>
-                      {hasAttachment && comment.attachment && (
-                        <a
-                          href={`/api/tickets/${comment.ticketId}/attachments/${comment._id}`}
-                          className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-sm hover:border-primary/30"
-                          download
-                        >
-                          <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                          <span className="truncate font-medium">{comment.attachment.name}</span>
-                          <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                            {(comment.attachment.size / 1024).toFixed(1)} KB
-                          </span>
-                        </a>
-                      )}
-                      <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] opacity-80">
-                        <Timestamp date={comment.createdAt} />
-                        <Receipts createdAt={createdAt} delivered={!!comment.deliveredAt} internal={isInternal} />
-                        {(canEdit || canDelete) && (
-                          <span className="inline-flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
-                            {canEdit && (
-                              <button type="button" onClick={() => startEdit(comment)} className="rounded p-0.5" aria-label="Edit message">
-                                <Pencil className="h-3 w-3" aria-hidden />
-                              </button>
-                            )}
-                            {canDelete && (
-                              <button
-                                type="button"
-                                onClick={() => deleteComment(comment)}
-                                disabled={deletingId === commentId}
-                                className={cn(
-                                  "rounded p-0.5",
-                                  confirmDeleteId === commentId ? "font-semibold underline" : ""
-                                )}
-                                aria-label={confirmDeleteId === commentId ? "Confirm delete message" : "Delete message"}
-                              >
-                                {confirmDeleteId === commentId ? "Confirm?" : <Trash2 className="h-3 w-3" aria-hidden />}
-                              </button>
-                            )}
-                          </span>
+                    ) : (
+                      <>
+                        <p className="whitespace-pre-wrap text-sm leading-relaxed">{comment.body}</p>
+                        {hasAttachment && comment.attachment && (
+                          <a
+                            href={`/api/tickets/${comment.ticketId}/attachments/${comment._id}`}
+                            className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-sm hover:border-primary/30"
+                            download
+                          >
+                            <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                            <span className="truncate font-medium">{comment.attachment.name}</span>
+                            <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                              {(comment.attachment.size / 1024).toFixed(1)} KB
+                            </span>
+                          </a>
                         )}
-                      </div>
-                    </>
-                  )}
+                        <div className="mt-1 flex items-center justify-end gap-1.5 text-[11px] opacity-80">
+                          <Timestamp date={comment.createdAt} />
+                          <Receipts createdAt={createdAt} delivered={!!comment.deliveredAt} internal={isInternal} />
+                          {(canEdit || canDelete) && (
+                            <span className="inline-flex items-center gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                              {canEdit && (
+                                <button type="button" onClick={() => startEdit(comment)} className="rounded p-0.5" aria-label="Edit message">
+                                  <Pencil className="h-3 w-3" aria-hidden />
+                                </button>
+                              )}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  onClick={() => deleteComment(comment)}
+                                  disabled={deletingId === commentId}
+                                  className={cn(
+                                    "rounded p-0.5",
+                                    confirmDeleteId === commentId ? "font-semibold underline" : ""
+                                  )}
+                                  aria-label={confirmDeleteId === commentId ? "Confirm delete message" : "Delete message"}
+                                >
+                                  {confirmDeleteId === commentId ? "Confirm?" : <Trash2 className="h-3 w-3" aria-hidden />}
+                                </button>
+                              )}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
+              </MessageContextMenu>
             );
           }
 
           // EVERYONE ELSE: left-aligned bubble with avatar + name (all roles).
           return (
-            <div key={commentId} className="flex items-end gap-2 py-1.5" aria-label={`Message by ${author?.name || "unknown"}`}>
-              <UserAvatar name={author?.name || "Unknown"} role={author?.role as any} size="sm" avatar={(author as { avatar?: string })?.avatar} />
-              <div
-                className={cn(
-                  "max-w-[85%] rounded-xl rounded-bl-xs px-3.5 py-2.5",
-                  isInternal
-                    ? "border border-warning/40 bg-warning-muted"
-                    : "border border-border bg-card shadow-xs"
-                )}
-              >
-                <div className="mb-0.5 flex flex-wrap items-center gap-x-2">
-                  <span className="text-xs font-semibold text-foreground">{author?.name || "Unknown"}</span>
-                  {isInternal && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-warning">
-                      <Lock className="h-3 w-3" aria-hidden /> Internal
-                    </span>
+            <MessageContextMenu
+              key={commentId}
+              message={comment as any}
+              ticketId={ticketId}
+              ticketStatus={ticketStatus}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              canEdit={false}
+              canDelete={canDelete}
+              onDelete={() => deleteComment(comment)}
+              onReply={handleReplyTo}
+            >
+              <div className="flex items-end gap-2 py-1.5" aria-label={`Message by ${author?.name || "unknown"}`}>
+                <UserAvatar name={author?.name || "Unknown"} role={author?.role as any} size="sm" avatar={(author as { avatar?: string })?.avatar} />
+                <div
+                  className={cn(
+                    "max-w-[85%] rounded-xl rounded-bl-xs px-3.5 py-2.5",
+                    isInternal
+                      ? "border border-warning/40 bg-warning-muted"
+                      : "border border-border bg-card shadow-xs"
                   )}
-                  <Timestamp date={comment.createdAt} className="font-mono text-[10px] text-muted-foreground" />
+                >
+                  <div className="mb-0.5 flex flex-wrap items-center gap-x-2">
+                    <span className="text-xs font-semibold text-foreground">{author?.name || "Unknown"}</span>
+                    {isInternal && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-warning">
+                        <Lock className="h-3 w-3" aria-hidden /> Internal
+                      </span>
+                    )}
+                    <Timestamp date={comment.createdAt} className="font-mono text-[10px] text-muted-foreground" />
+                  </div>
+                  <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{comment.body}</p>
+                  {hasAttachment && comment.attachment && (
+                    <a
+                      href={`/api/tickets/${comment.ticketId}/attachments/${comment._id}`}
+                      className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-sm hover:border-primary/30"
+                      download
+                    >
+                      <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="truncate font-medium">{comment.attachment.name}</span>
+                      <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
+                        {(comment.attachment.size / 1024).toFixed(1)} KB
+                      </span>
+                    </a>
+                  )}
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground/90">{comment.body}</p>
-                {hasAttachment && comment.attachment && (
-                  <a
-                    href={`/api/tickets/${comment.ticketId}/attachments/${comment._id}`}
-                    className="mt-1.5 inline-flex max-w-full items-center gap-2 rounded-lg border border-border bg-muted/40 px-2.5 py-1.5 text-sm hover:border-primary/30"
-                    download
-                  >
-                    <Download className="h-3.5 w-3.5 shrink-0 text-muted-foreground" aria-hidden />
-                    <span className="truncate font-medium">{comment.attachment.name}</span>
-                    <span className="shrink-0 font-mono text-[11px] text-muted-foreground">
-                      {(comment.attachment.size / 1024).toFixed(1)} KB
-                    </span>
-                  </a>
-                )}
               </div>
-            </div>
+            </MessageContextMenu>
           );
         })}
 
         {/* Optimistic pending messages */}
         {pendingToDisplay.map((m) => (
-          <div key={m.localId} className="flex justify-end py-1.5">
-            <div
-              className={cn(
-                "max-w-[85%] rounded-xl rounded-br-xs px-3.5 py-2.5 opacity-90",
-                m.visibility === "internal" ? "border border-warning/40 bg-warning-muted text-warning-foreground" : "bg-primary text-primary-foreground shadow-xs"
-              )}
-              aria-label={`Sending${m.visibility === "internal" ? " internal note" : ""}`}
-            >
-              {m.visibility === "internal" && (
-                <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-warning">
-                  <Lock className="h-3 w-3" aria-hidden /> Internal
-                </span>
-              )}
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</p>
-              <div className="mt-1 flex items-center justify-end gap-1 text-[11px] opacity-80">
-                {m.state === "sending" && (
-                  <span aria-live="polite" className="inline-flex items-center gap-1">
-                    <span className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
-                    Sending…
+          <MessageContextMenu
+            key={m.localId}
+            message={{ _id: m.localId, body: m.body, visibility: m.visibility }}
+            ticketId={ticketId}
+            ticketStatus={ticketStatus}
+            currentUserId={currentUserId}
+            currentUserRole={currentUserRole}
+            isFailed={m.state === "failed"}
+            onRetry={() => retryPending(m.localId)}
+            canEdit={false}
+            canDelete={false}
+          >
+            <div className="flex justify-end py-1.5">
+              <div
+                className={cn(
+                  "max-w-[85%] rounded-xl rounded-br-xs px-3.5 py-2.5 opacity-90",
+                  m.visibility === "internal" ? "border border-warning/40 bg-warning-muted text-warning-foreground" : "bg-primary text-primary-foreground shadow-xs"
+                )}
+                aria-label={`Sending${m.visibility === "internal" ? " internal note" : ""}`}
+              >
+                {m.visibility === "internal" && (
+                  <span className="mb-1 flex items-center gap-1 text-[11px] font-semibold uppercase tracking-wide text-warning">
+                    <Lock className="h-3 w-3" aria-hidden /> Internal
                   </span>
                 )}
-                {m.state === "sent" && <Check className="h-3 w-3 opacity-70" aria-label="Sent" />}
-                {m.state === "failed" && <span className="font-medium text-destructive">Failed</span>}
+                <p className="whitespace-pre-wrap text-sm leading-relaxed">{m.body}</p>
+                <div className="mt-1 flex items-center justify-end gap-1 text-[11px] opacity-80">
+                  {m.state === "sending" && (
+                    <span aria-live="polite" className="inline-flex items-center gap-1">
+                      <span className="inline-block h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+                      Sending…
+                    </span>
+                  )}
+                  {m.state === "sent" && <Check className="h-3 w-3 opacity-70" aria-label="Sent" />}
+                  {m.state === "failed" && <span className="font-medium text-destructive">Failed</span>}
+                </div>
               </div>
             </div>
-          </div>
+          </MessageContextMenu>
         ))}
 
         <div ref={bottomRef} />

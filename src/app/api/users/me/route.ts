@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db/mongo";
 import { User } from "@/lib/db/models";
 import { getUser } from "@/lib/authz";
-import { invalidateSessionCheck } from "@/lib/auth";
+import { invalidateSessionCheck, revokeAllUserSessions } from "@/lib/auth";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { z } from "zod";
 
@@ -112,6 +112,7 @@ export async function PATCH(request: NextRequest) {
 
     if (newPassword) {
       invalidateSessionCheck(user._id.toString());
+      await revokeAllUserSessions(user._id.toString());
     }
 
     return NextResponse.json({ user: updated });

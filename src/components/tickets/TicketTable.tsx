@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { TRANSFERS_ENABLED } from "@/lib/features";
 import { StatusBadge, PriorityBadge, UserAvatar, DepartmentBadge } from "./badges";
 import { ticketHref, type TicketCardTicket } from "./TicketCard";
+import { TicketContextMenu } from "@/components/productivity";
 import {
   Select,
   SelectContent,
@@ -397,17 +398,35 @@ export function TicketTable({
             const senderName = requester?.name;
             const dept = t.departmentId as { name?: string; color?: string } | undefined;
             return (
-              <tr
+              <TicketContextMenu
                 key={t._id}
-                id={`ticket-row-${index}`}
-                data-row-index={index}
-                aria-selected={isSelected}
-                className={cn(
-                  "group border-b border-border/70 transition-colors last:border-0",
-                  isSelected ? "bg-accent-soft/70 text-foreground" : "hover:bg-secondary/40"
-                )}
+                ticket={t}
+                currentUserId={currentUserId}
+                currentUserRole={currentUserRole}
+                teamMembers={teamMembers}
+                onStatusChange={(ticket, newStatus) => {
+                  void mutate(t, { status: newStatus }, `Status: ${newStatus.replace("_", " ")}`);
+                }}
+                onPriorityChange={(ticket, newPriority) => {
+                  void mutate(t, { priority: newPriority }, `Priority: ${newPriority}`);
+                }}
+                onAssign={(ticket, memberId) => {
+                  assignTo(t, memberId || UNASSIGNED);
+                }}
+                onDelete={() => {
+                  onChanged?.();
+                }}
               >
-                <td className="px-3 py-2.5 hidden sm:table-cell">
+                <tr
+                  id={`ticket-row-${index}`}
+                  data-row-index={index}
+                  aria-selected={isSelected}
+                  className={cn(
+                    "group border-b border-border/70 transition-colors last:border-0",
+                    isSelected ? "bg-accent-soft/70 text-foreground" : "hover:bg-secondary/40"
+                  )}
+                >
+                  <td className="px-3 py-2.5 hidden sm:table-cell">
                   <span className="font-mono text-xs text-muted-foreground">{t.ticketNumber}</span>
                 </td>
                 <td className="max-w-0 px-3 py-2.5">
@@ -566,6 +585,7 @@ export function TicketTable({
                   </div>
                 </td>
               </tr>
+            </TicketContextMenu>
             );
           })}
         </tbody>

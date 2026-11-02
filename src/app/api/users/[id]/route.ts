@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/db/mongo";
 import { User, Ticket, Comment } from "@/lib/db/models";
 import { requireApiRole } from "@/lib/authz";
-import { invalidateSessionCheck, invalidatePermissionsCheck } from "@/lib/auth";
+import { invalidateSessionCheck, invalidatePermissionsCheck, revokeAllUserSessions } from "@/lib/auth";
 import { hashPassword } from "@/lib/password";
 import { z } from "zod";
 import mongoose from "mongoose";
@@ -153,8 +153,9 @@ export async function PATCH(
       .populate("departmentId", "name color")
       .lean();
 
-    if (password) {
+    if (password || updateData.active === false) {
       invalidateSessionCheck(id);
+      await revokeAllUserSessions(id);
     }
     // Permission changes land on the target user's very next request instead
     // of up to 60s later (session revalidation TTL).

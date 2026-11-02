@@ -5,6 +5,8 @@ import { formatDistanceToNow } from "date-fns";
 import { Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useSession } from "next-auth/react";
+import { TicketContextMenu } from "@/components/productivity";
 import {
   StatusBadge,
   PriorityBadge,
@@ -60,6 +62,9 @@ export function TicketCard({
   onQuickPreview,
   className,
 }: TicketCardProps) {
+  const { data: session } = useSession();
+  const sessionUserId = session?.user?.id;
+  const sessionUserRole = session?.user?.role;
   const requester = ticket.requesterId as UserType | undefined;
   const assignee = ticket.assigneeId as UserType | undefined;
   const department = ticket.departmentId as Department | undefined;
@@ -112,17 +117,25 @@ export function TicketCard({
       className
     );
 
-    if (href) {
-      return (
-        <Link href={href} className={classes} aria-label={`${ticket.ticketNumber}: ${ticket.title}`}>
-          {body}
-        </Link>
-      );
-    }
-    return (
+    const content = href ? (
+      <Link href={href} className={classes} aria-label={`${ticket.ticketNumber}: ${ticket.title}`}>
+        {body}
+      </Link>
+    ) : (
       <div className={classes} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined}>
         {body}
       </div>
+    );
+
+    return (
+      <TicketContextMenu
+        ticket={ticket}
+        currentUserId={sessionUserId}
+        currentUserRole={sessionUserRole}
+        onQuickPreview={onQuickPreview}
+      >
+        {content}
+      </TicketContextMenu>
     );
   }
 
@@ -223,19 +236,27 @@ export function TicketCard({
     className
   );
 
-  if (href) {
-    return (
+    const content = href ? (
       <Link href={href} className={classes} aria-label={`${ticket.ticketNumber}: ${ticket.title}`}>
         {body}
       </Link>
+    ) : (
+      <div className={classes} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined}>
+        {body}
+      </div>
+    );
+
+    return (
+      <TicketContextMenu
+        ticket={ticket}
+        currentUserId={sessionUserId}
+        currentUserRole={sessionUserRole}
+        onQuickPreview={onQuickPreview}
+      >
+        {content}
+      </TicketContextMenu>
     );
   }
-  return (
-    <div className={classes} onClick={onClick} role={onClick ? "button" : undefined} tabIndex={onClick ? 0 : undefined}>
-      {body}
-    </div>
-  );
-}
 
 interface TicketListProps {
   tickets: TicketCardTicket[];

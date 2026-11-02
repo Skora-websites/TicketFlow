@@ -18,6 +18,9 @@ TicketFlow is designed to bridge the gap between clients needing fast resolution
    - [Analytics, Workload & Heatmaps](#analytics-workload--heatmaps)
    - [Optimistic UI & Client-Side Caching](#optimistic-ui--client-side-caching)
    - [Minimize & Resume Workflows (Draft Dock)](#minimize--resume-workflows-draft-dock)
+   - [Draggable Bottom Sheets & Mobile Experience](#draggable-bottom-sheets--mobile-experience)
+   - [Persistent Authentication (6-Month Sessions)](#persistent-authentication-6-month-sessions)
+   - [Core Productivity Context Menus](#core-productivity-context-menus)
    - [Security, Rate Limits & Quotas](#security-rate-limits--quotas)
 5. [Application Architecture & Tech Stack](#5-application-architecture--tech-stack)
 6. [Database Schema & Models](#6-database-schema--models)
@@ -183,6 +186,34 @@ TicketFlow delivers a native-grade, fluid mobile experience modeled after Google
   - **Unassigned Queue & Forwarding**: Assignment modals on the queue page slide up as bottom sheets on mobile, giving users full vertical space with avatars and safe-area scrolling.
   - **Safe Areas & Accessibility**: Full support for iOS/Android home indicator safe areas (`env(safe-area-inset-bottom)`), focus management, visible drag pill handle, keyboard Escape dismissal, and background scroll lock.
 
+### Persistent Authentication (6-Month Sessions)
+*Location: `src/lib/auth.ts`, `src/lib/db/models.ts` (AuthSession), `src/app/api/auth/logout/route.ts`*
+
+TicketFlow supports enterprise-grade persistent login that preserves user sessions for up to 6 months (180 days / 15,552,000 seconds) without re-authentication:
+- **Sliding Refresh with Absolute Ceiling**: Authentication tokens automatically refresh during active daily usage while remaining strictly bound to an absolute 180-day hard cap from the initial login date.
+- **Server-Side Session Persistence (`AuthSession`)**: Every issued token is tracked in MongoDB with its unique token ID, device user-agent, creation IP, and revocation status.
+- **Edge Middleware Revocation Check**: The edge proxy (`src/proxy.ts`) evaluates incoming JWT tokens against hard cap expiration rules, instantly locking out revoked or expired sessions.
+- **Secure Token Lifecycle & Cleanup**: Dedicated `/api/auth/logout` endpoint atomically invalidates the database session and clears secure `HttpOnly`, `SameSite=Lax` cookies.
+
+### Core Productivity Context Menus
+*Location: `src/components/ui/context-menu.tsx`, `src/components/productivity/TicketContextMenu.tsx`, `src/components/productivity/MessageContextMenu.tsx`*
+
+A uniform, accessible right-click context menu system deployed across all primary workspaces in TicketFlow:
+- **Unified Actions Across Ticket Surfaces**: Available on ticket table rows, Kanban cards, mobile preview cards, and the unassigned queue:
+  - Open Ticket, Quick Peek, Copy Ticket ID, and Copy Direct Link.
+  - Nested Submenus: Change Status (`Open`, `In Progress`, `On Hold`, `Resolved`, `Closed`), Change Priority (`Low`, `Medium`, `High`, `Urgent`), and Assign/Reassign team members.
+  - Duplicate Ticket & Destructive Delete with confirmation modal.
+- **Chat & Ticket Comments Context Menu**:
+  - Copy Message/Note Text and Direct Permalink.
+  - Quote-Reply in Thread: Quotes the sender's name and message snippet directly into the composer.
+  - Inline Edit & Delete for own messages (accessible to managers for moderation).
+  - Retry failed or disconnected messages with one click.
+- **Behavior & Accessibility**:
+  - Full keyboard navigation with arrow keys, `Enter`, and `Escape`.
+  - Viewport-aware boundary positioning that avoids screen overflow.
+  - Long-press touch activation on mobile devices without conflicting with existing buttons or links.
+  - Immediate optimistic UI updates with one-click "Undo" notifications.
+
 ### Security, Rate Limits & Quotas
 *Location: `src/lib/security.ts` & `src/lib/fileValidation.ts`*
 
@@ -259,6 +290,11 @@ TicketFlow delivers a native-grade, fluid mobile experience modeled after Google
    - Conditions: `keywords`, `categories`, `priorities`
    - Assignment targets: target department, required agent skills, fallback strategy.
 
+7. **Persistent Session (`AuthSession`)**
+   - `userId`, `sessionToken`, `expiresAt`, `hardCapExpiresAt` (180 days)
+   - `revoked`: boolean flag for immediate token invalidation
+   - `userAgent`, `ipAddress`, and rotation timestamps.
+
 ---
 
 ## 7. API Design & Endpoints
@@ -269,6 +305,7 @@ All endpoints require active session authentication and enforce role verificatio
 
 | Method | Endpoint | Allowed Roles | Description | Pagination Limit |
 |---|---|---|---|---|
+| `POST` | `/api/auth/logout` | Authenticated | Revoke persistent session and clear auth cookies | N/A |
 | `GET` | `/api/tickets` | All (scoped) | List tickets with filters (`view`, `status`, `priority`) | `limit` $\le 100$ |
 | `POST` | `/api/tickets` | All | Create a new ticket (triggers auto-routing) | N/A |
 | `GET` | `/api/tickets/[id]` | Permitted | Fetch ticket details and verify access rights | N/A |

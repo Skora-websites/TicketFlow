@@ -30,6 +30,10 @@ export function SignedInPanel() {
 
   const switchAccount = async () => {
     setSwitching(true);
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+    } catch {}
+    document.cookie = "rm=; path=/; max-age=0; samesite=lax";
     await signOut({ redirect: false });
     window.location.href = "/login?switch=true";
   };

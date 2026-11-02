@@ -172,8 +172,14 @@ export default async function proxy(request: NextRequest) {
     });
   }
 
-  // Sessions re-validated in auth.ts: inactive/deleted users are logged out.
-  const token = rawToken && rawToken.active === false ? null : rawToken;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const isHardExpired =
+    rawToken?.absoluteExpiresAt &&
+    typeof rawToken.absoluteExpiresAt === "number" &&
+    nowSec > rawToken.absoluteExpiresAt;
+
+  // Sessions re-validated in auth.ts: inactive/deleted users or 6-month expired sessions are logged out.
+  const token = rawToken && rawToken.active !== false && !isHardExpired ? rawToken : null;
 
   // Check if path is protected
   const isProtected = protectedPaths.some((path) => pathname.startsWith(path));

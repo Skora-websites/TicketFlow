@@ -11,6 +11,9 @@ declare module "next-auth" {
       theme?: "dark" | "light" | "system";
       colorTheme?: "purple" | "rose" | "lime" | "brown";
     } & DefaultSession["user"];
+    sessionId?: string;
+    sessionCreatedAt?: number;
+    absoluteExpiresAt?: number;
   }
 
   interface User {
@@ -32,5 +35,10 @@ declare module "next-auth/jwt" {
     image?: string | null;
     theme?: "dark" | "light" | "system";
     colorTheme?: "purple" | "rose" | "lime" | "brown";
+    sessionId?: string;
+    sessionCreatedAt?: number;
+    absoluteExpiresAt?: number;
+    sessionVersion?: number;
+    active?: boolean;
   }
 }
