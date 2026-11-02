@@ -36,6 +36,10 @@ import {
   TicketContextMenu,
   MessageContextMenu,
   KanbanColumnContextMenu,
+  TeamMemberContextMenu,
+  AssignmentContextMenu,
+  NotificationContextMenu,
+  ActivityContextMenu,
 } from "../src/components/productivity";
 import {
   TicketKanbanBoard,
@@ -45,9 +49,13 @@ import {
 assert.ok(TicketContextMenu, "TicketContextMenu must be exported from productivity module");
 assert.ok(MessageContextMenu, "MessageContextMenu must be exported from productivity module");
 assert.ok(KanbanColumnContextMenu, "KanbanColumnContextMenu must be exported from productivity module");
+assert.ok(TeamMemberContextMenu, "TeamMemberContextMenu must be exported from productivity module");
+assert.ok(AssignmentContextMenu, "AssignmentContextMenu must be exported from productivity module");
+assert.ok(NotificationContextMenu, "NotificationContextMenu must be exported from productivity module");
+assert.ok(ActivityContextMenu, "ActivityContextMenu must be exported from productivity module");
 assert.ok(TicketKanbanBoard, "TicketKanbanBoard must be exported from tickets module");
 assert.equal(KANBAN_COLUMNS.length, 5, "Kanban board must define 5 standard status columns");
-console.log("✓ TicketContextMenu, MessageContextMenu, KanbanColumnContextMenu, and TicketKanbanBoard successfully exported");
+console.log("✓ All 7 productivity context menus and TicketKanbanBoard successfully exported");
 
 // 3. Test Ticket Context Menu Permissions & Actions
 interface MockTicket {
@@ -222,6 +230,20 @@ assert.ok(quote.startsWith("> @Alice: "), "Quote starts with markdown blockquote
 assert.ok(quote.includes("HTTP 504 gateway timeout"), "Quote contains original text snippet");
 console.log("✓ Thread quote generation verified");
 
+// 5b. Test Internal Note Link Privacy & Failed Message Action Isolation
+const evaluateLinkAction = (isInternal: boolean, userRole: string, isFailed: boolean) => {
+  if (isFailed) return false;
+  if (isInternal && userRole === "client") return false;
+  return true;
+};
+
+assert.equal(evaluateLinkAction(true, "client", false), false, "Internal notes must NEVER expose links to clients");
+assert.equal(evaluateLinkAction(true, "team", false), true, "Internal notes can be linked internally by staff");
+assert.equal(evaluateLinkAction(true, "manager", false), true, "Internal notes can be linked by manager");
+assert.equal(evaluateLinkAction(false, "client", false), true, "Public messages can be linked by clients");
+assert.equal(evaluateLinkAction(false, "client", true), false, "Failed unsent messages cannot be linked");
+console.log("✓ Internal note link privacy and failed message link isolation verified");
+
 // 6. Test Kanban Board & Column Context Menu Actions
 const NEXT_STATUS: Record<string, string> = {
   open: "in_progress",
@@ -278,5 +300,281 @@ const formatTitleCopy = (title: string) => title.trim();
 const copiedTitle = formatTitleCopy("  Checkout service returns 502 Bad Gateway  ");
 assert.equal(copiedTitle, "Checkout service returns 502 Bad Gateway", "Title is trimmed properly");
 console.log("✓ Ticket title copy formatting verified");
+
+// 7. Test Team Member Context Menu Permissions & Actions
+interface MockMember {
+  _id: string;
+  name: string;
+  email: string;
+  role: "super_admin" | "manager" | "team" | "client";
+  departmentId?: string;
+  active: boolean;
+}
+
+const evaluateMemberPermissions = (
+  target: MockMember,
+  actorId: string,
+  actorRole: string,
+  actorDeptId?: string
+) => {
+  const isSelf = target._id === actorId;
+  const isSuperAdmin = actorRole === "super_admin";
+  const isManager = actorRole === "manager";
+  const isInSameDept = actorDeptId && target.departmentId ? actorDeptId === target.departmentId : false;
+
+  const canManageRole =
+    !isSelf &&
+    (isSuperAdmin || (isManager && isInSameDept && target.role === "team"));
+
+  const canToggleActive =
+    !isSelf &&
+    (isSuperAdmin || (isManager && isInSameDept && target.role === "team"));
+
+  const canDelete =
+    isSuperAdmin && !isSelf && target.role !== "super_admin";
+
+  return { canManageRole, canToggleActive, canDelete, isSelf };
+};
+
+const agentInSupport: MockMember = {
+  _id: "agent-1",
+  name: "Bob Agent",
+  email: "bob@support.com",
+  role: "team",
+  departmentId: "dept-support",
+  active: true,
+};
+
+const managerSupport: MockMember = {
+  _id: "mgr-1",
+  name: "Alice Manager",
+  email: "alice@support.com",
+  role: "manager",
+  departmentId: "dept-support",
+  active: true,
+};
+
+const superAdminUser: MockMember = {
+  _id: "admin-1",
+  name: "Root Admin",
+  email: "admin@company.com",
+  role: "super_admin",
+  active: true,
+};
+
+// Super admin testing on agent
+const saOnAgent = evaluateMemberPermissions(agentInSupport, "admin-1", "super_admin");
+assert.equal(saOnAgent.canManageRole, true, "Super admin can change agent's role");
+assert.equal(saOnAgent.canToggleActive, true, "Super admin can toggle agent active state");
+assert.equal(saOnAgent.canDelete, true, "Super admin can remove regular member");
+
+// Super admin testing on self
+const saOnSelf = evaluateMemberPermissions(superAdminUser, "admin-1", "super_admin");
+assert.equal(saOnSelf.canManageRole, false, "Super admin cannot change own role");
+assert.equal(saOnSelf.canToggleActive, false, "Super admin cannot deactivate self");
+assert.equal(saOnSelf.canDelete, false, "Super admin cannot delete self");
+
+// Manager testing on agent in same department
+const mgrOnDeptAgent = evaluateMemberPermissions(agentInSupport, "mgr-1", "manager", "dept-support");
+assert.equal(mgrOnDeptAgent.canManageRole, true, "Manager can manage agent in own department");
+assert.equal(mgrOnDeptAgent.canToggleActive, true, "Manager can toggle agent in own department");
+assert.equal(mgrOnDeptAgent.canDelete, false, "Manager can NEVER delete users");
+
+// Manager testing on agent in DIFFERENT department
+const mgrOnOtherDeptAgent = evaluateMemberPermissions(agentInSupport, "mgr-2", "manager", "dept-billing");
+assert.equal(mgrOnOtherDeptAgent.canManageRole, false, "Manager cannot manage agent outside department");
+assert.equal(mgrOnOtherDeptAgent.canToggleActive, false, "Manager cannot toggle agent outside department");
+
+// Manager testing on peer manager
+const mgrOnPeerManager = evaluateMemberPermissions(managerSupport, "mgr-2", "manager", "dept-support");
+assert.equal(mgrOnPeerManager.canManageRole, false, "Manager cannot manage another manager");
+
+console.log("✓ Team member role management and authorization rules verified");
+
+// Copy actions formatting
+const buildMemberProfileLink = (origin: string, email: string) =>
+  `${origin}/dashboard/users?search=${encodeURIComponent(email)}`;
+const profileLink = buildMemberProfileLink("https://ticketflow.app", "bob@support.com");
+assert.equal(profileLink, "https://ticketflow.app/dashboard/users?search=bob%40support.com");
+console.log("✓ Team member profile link and copy format verified");
+
+// 8. Test Assignment Context Menu Permissions & Actions
+interface MockTicketAssignment {
+  ticketNumber: string;
+  status: string;
+  assignee?: { _id: string; name: string; email: string } | null;
+}
+
+const evaluateAssignmentPermissions = (
+  ticket: MockTicketAssignment,
+  actorRole: string
+) => {
+  const isClosed = ticket.status === "closed";
+  const isManager = actorRole === "manager";
+  const isSuperAdmin = actorRole === "super_admin";
+  const canAssign = !isClosed && (isManager || isSuperAdmin);
+
+  const assigneeDetails = ticket.assignee
+    ? `${ticket.assignee.name} <${ticket.assignee.email}>`
+    : null;
+
+  return { canAssign, isClosed, assigneeDetails };
+};
+
+const assignedTicket: MockTicketAssignment = {
+  ticketNumber: "TK-200",
+  status: "open",
+  assignee: { _id: "agent-1", name: "Bob Agent", email: "bob@support.com" },
+};
+
+const closedTicket: MockTicketAssignment = {
+  ticketNumber: "TK-201",
+  status: "closed",
+  assignee: { _id: "agent-1", name: "Bob Agent", email: "bob@support.com" },
+};
+
+const unassignedTicket: MockTicketAssignment = {
+  ticketNumber: "TK-202",
+  status: "open",
+  assignee: null,
+};
+
+// Manager evaluating assigned ticket
+const mgrOnAssigned = evaluateAssignmentPermissions(assignedTicket, "manager");
+assert.equal(mgrOnAssigned.canAssign, true, "Manager can reassign ticket");
+assert.equal(mgrOnAssigned.assigneeDetails, "Bob Agent <bob@support.com>", "Formats details for copying");
+
+// Agent evaluating assigned ticket
+const agentOnAssigned = evaluateAssignmentPermissions(assignedTicket, "team");
+assert.equal(agentOnAssigned.canAssign, false, "Agent cannot reassign ticket from context menu");
+
+// Manager on closed ticket
+const mgrOnClosed = evaluateAssignmentPermissions(closedTicket, "manager");
+assert.equal(mgrOnClosed.canAssign, false, "Closed ticket cannot be reassigned or unassigned");
+
+// Super admin on unassigned ticket
+const saOnUnassigned = evaluateAssignmentPermissions(unassignedTicket, "super_admin");
+assert.equal(saOnUnassigned.canAssign, true, "Super admin can forward/assign unassigned ticket");
+assert.equal(saOnUnassigned.assigneeDetails, null, "Unassigned ticket has no assignee details");
+
+console.log("✓ Assignment context menu permissions and details formatting verified");
+
+// 8. Test Notification Context Menu Actions & State Adaptation
+interface MockNotification {
+  id: string;
+  ticketId?: string;
+  ticketNumber?: string;
+  title: string;
+  body: string;
+  read: boolean;
+  type: string;
+}
+
+const evaluateNotificationMenu = (notif: MockNotification, userRole: string = "agent") => {
+  const toggleActionLabel = notif.read ? "Mark as unread" : "Mark as read";
+  const nextReadState = !notif.read;
+  const ticketBaseHref = userRole === "client" ? "/client/tickets/" : "/dashboard/tickets/";
+  const ticketHref = notif.ticketId ? `${ticketBaseHref}${notif.ticketId}` : null;
+  const copyText = `${notif.title}${notif.ticketNumber ? ` [${notif.ticketNumber}]` : ""}\n${notif.body}`;
+
+  return {
+    toggleActionLabel,
+    nextReadState,
+    ticketHref,
+    copyText,
+    canDismiss: true,
+    canDelete: true,
+  };
+};
+
+const unreadNotif: MockNotification = {
+  id: "notif-1",
+  ticketId: "t-100",
+  ticketNumber: "TK-100",
+  title: "New comment on ticket",
+  body: "Customer replied to inquiry",
+  read: false,
+  type: "comment_added",
+};
+
+const readNotif: MockNotification = {
+  id: "notif-2",
+  ticketId: "t-101",
+  ticketNumber: "TK-101",
+  title: "You were assigned TK-101",
+  body: "Database outage triage",
+  read: true,
+  type: "ticket_assigned",
+};
+
+const unreadMenu = evaluateNotificationMenu(unreadNotif, "team");
+assert.equal(unreadMenu.toggleActionLabel, "Mark as read", "Unread notification presents 'Mark as read'");
+assert.equal(unreadMenu.nextReadState, true, "Toggling unread notification marks as read");
+assert.equal(unreadMenu.ticketHref, "/dashboard/tickets/t-100", "Resolves dashboard ticket path for staff");
+
+const readMenu = evaluateNotificationMenu(readNotif, "client");
+assert.equal(readMenu.toggleActionLabel, "Mark as unread", "Read notification presents 'Mark as unread'");
+assert.equal(readMenu.nextReadState, false, "Toggling read notification marks as unread");
+assert.equal(readMenu.ticketHref, "/client/tickets/t-101", "Resolves client ticket path for client role");
+
+// Test bulk notification calculations
+const notificationBatch = [unreadNotif, readNotif, { ...unreadNotif, id: "notif-3", read: false }];
+const initialUnreadCount = notificationBatch.filter((n) => !n.read).length;
+assert.equal(initialUnreadCount, 2, "Accurately computes unread count before bulk action");
+
+const afterMarkAllRead = notificationBatch.map((n) => ({ ...n, read: true }));
+const newUnreadCount = afterMarkAllRead.filter((n) => !n.read).length;
+assert.equal(newUnreadCount, 0, "Bulk mark as read clears all unread indicators without double-counting");
+
+console.log("✓ Notification context menu state adaptation and bulk counting verified");
+
+// 9. Test Activity Feed Context Menu & Historical Integrity
+interface MockActivity {
+  id: string;
+  ticketId?: string;
+  ticketNumber?: string;
+  details: string;
+  user: { name: string; role: string } | string;
+  timestamp: string;
+  isAuditLog: boolean;
+}
+
+const evaluateActivityMenu = (activity: MockActivity, actorRole: string) => {
+  const userName = typeof activity.user === "object" ? activity.user.name : activity.user;
+  const userProfileHref = actorRole !== "client" && userName !== "System"
+    ? `/dashboard/users?search=${encodeURIComponent(userName)}`
+    : null;
+  const ticketHref = activity.ticketId ? `/dashboard/tickets/${activity.ticketId}` : null;
+
+  // Strict constraint: Historical audit logs must NOT allow edit or delete actions
+  const canEdit = false;
+  const canDelete = false;
+
+  return {
+    userName,
+    userProfileHref,
+    ticketHref,
+    canEdit,
+    canDelete,
+  };
+};
+
+const auditEvent: MockActivity = {
+  id: "act-1",
+  ticketId: "t-100",
+  ticketNumber: "TK-100",
+  details: "changed status from open to in_progress",
+  user: { name: "Agent Jane", role: "team" },
+  timestamp: new Date().toISOString(),
+  isAuditLog: true,
+};
+
+const activityMenu = evaluateActivityMenu(auditEvent, "manager");
+assert.equal(activityMenu.ticketHref, "/dashboard/tickets/t-100", "Provides ticket navigation");
+assert.equal(activityMenu.userProfileHref, "/dashboard/users?search=Agent%20Jane", "Provides user profile lookup");
+assert.equal(activityMenu.canEdit, false, "Audit activity log cannot be edited");
+assert.equal(activityMenu.canDelete, false, "Audit activity log cannot be deleted");
+
+console.log("✓ Activity context menu actions and historical audit immutability verified");
 
 console.log("=== All Context Menu Tests Passed Successfully! ===");

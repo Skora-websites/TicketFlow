@@ -131,9 +131,13 @@ export async function DELETE(
       return NextResponse.json({ error: "System comments cannot be deleted" }, { status: 403 });
     }
 
-    // Authors may delete their own comments; super admins may delete any.
+    // Authors may delete their own comments; super admins and department managers may delete for moderation.
     const isAuthor = comment.authorId.toString() === user!.id;
-    if (!isAuthor && user!.role !== "super_admin") {
+    const isDeptManager =
+      user!.role === "manager" &&
+      !!user!.departmentId &&
+      ticket.departmentId?.toString() === user!.departmentId;
+    if (!isAuthor && user!.role !== "super_admin" && !isDeptManager) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 

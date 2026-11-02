@@ -59,7 +59,7 @@ export function removeDraftFromStorage(id: string): void {
   }
 }
 
-export function loadAllDraftsFromStorage(): BaseDraft[] {
+export function loadAllDraftsFromStorage(userId?: string): BaseDraft[] {
   if (!isStorageAvailable()) return [];
   const results: BaseDraft[] = [];
   try {
@@ -71,7 +71,9 @@ export function loadAllDraftsFromStorage(): BaseDraft[] {
       try {
         const parsed = JSON.parse(raw) as BaseDraft;
         if (Date.now() - parsed.updatedAt <= MAX_DRAFT_AGE_MS) {
-          results.push(parsed);
+          if (!userId || !parsed.userId || parsed.userId === userId) {
+            results.push(parsed);
+          }
         } else {
           window.localStorage.removeItem(key);
         }
@@ -84,4 +86,33 @@ export function loadAllDraftsFromStorage(): BaseDraft[] {
     console.warn("Failed to load drafts from storage:", err);
   }
   return results;
+}
+
+export function clearAllDraftsFromStorage(userId?: string): void {
+  if (!isStorageAvailable()) return;
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < window.localStorage.length; i++) {
+      const key = window.localStorage.key(i);
+      if (!key || !key.startsWith(STORAGE_PREFIX)) continue;
+      if (!userId) {
+        keysToRemove.push(key);
+      } else {
+        const raw = window.localStorage.getItem(key);
+        if (raw) {
+          try {
+            const parsed = JSON.parse(raw) as BaseDraft;
+            if (parsed.userId === userId) keysToRemove.push(key);
+          } catch {
+            keysToRemove.push(key);
+          }
+        }
+      }
+    }
+    for (const key of keysToRemove) {
+      window.localStorage.removeItem(key);
+    }
+  } catch {
+    // ignore
+  }
 }

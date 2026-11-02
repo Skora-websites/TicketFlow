@@ -42,6 +42,11 @@ export function buildTicketSearchFilter(rawSearch: unknown, maxLength = 100): Ti
     return { ticketNumber: { $regex: `TK-?0*${digits}$`, $options: "i" } };
   }
 
+  const prefixMatch = trimmed.match(/^tk-?$/i);
+  if (prefixMatch) {
+    return { ticketNumber: { $regex: "^TK-", $options: "i" } };
+  }
+
   // $text gives quotes phrase-search meaning and a leading "-" term
   // negation. A pasted `"login" -fix` must not silently invert the query —
   // strip quotes, backslashes, and per-token leading hyphens.

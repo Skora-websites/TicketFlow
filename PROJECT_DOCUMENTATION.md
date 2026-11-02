@@ -196,10 +196,10 @@ TicketFlow supports enterprise-grade persistent login that preserves user sessio
 - **Secure Token Lifecycle & Cleanup**: Dedicated `/api/auth/logout` endpoint atomically invalidates the database session and clears secure `HttpOnly`, `SameSite=Lax` cookies.
 
 ### Core Productivity Context Menus
-*Location: `src/components/ui/context-menu.tsx`, `src/components/productivity/TicketContextMenu.tsx`, `src/components/productivity/MessageContextMenu.tsx`*
+*Location: `src/components/ui/context-menu.tsx`, `src/components/productivity/` (`TicketContextMenu.tsx`, `KanbanColumnContextMenu.tsx`, `MessageContextMenu.tsx`, `TeamMemberContextMenu.tsx`, `AssignmentContextMenu.tsx`, `NotificationContextMenu.tsx`, `ActivityContextMenu.tsx`)*
 
 A uniform, accessible right-click context menu system deployed across all primary workspaces in TicketFlow:
-- **Unified Actions Across Ticket Surfaces**: Available on ticket table rows, Kanban cards, mobile preview cards, and the unassigned queue:
+- **Unified Actions Across Ticket Surfaces (`TicketContextMenu`)**: Available on ticket table rows, Kanban cards, mobile preview cards, and the unassigned queue:
   - Open Ticket, Quick Peek, Copy Ticket ID, Copy Ticket Title, and Copy Direct Link.
   - Kanban Fast Moves: One-click "Move to Next Status" and "Move to Previous Status", plus a "Move to Column" submenu listing non-current columns.
   - Nested Submenus: Change Status (`Open`, `In Progress`, `On Hold`, `Resolved`, `Closed`), Change Priority (`Low`, `Medium`, `High`, `Urgent`), Change Category, and Assign/Reassign team members.
@@ -208,11 +208,33 @@ A uniform, accessible right-click context menu system deployed across all primar
   - Right-clicking empty column space or column header provides column-scoped actions: "New Ticket in [Column]", "Filter to [Column]", and "Refresh Board".
   - Fluid drag-and-drop between status columns with immediate optimistic UI updates, undo toast notifications, and safe server rollback on failure.
   - Alternative three-dot overflow dropdown menus on cards for touch and mouse users.
-- **Chat & Ticket Comments Context Menu**:
-  - Copy Message/Note Text and Direct Permalink.
-  - Quote-Reply in Thread: Quotes the sender's name and message snippet directly into the composer.
-  - Inline Edit & Delete for own messages (accessible to managers for moderation).
-  - Retry failed or disconnected messages with one click.
+- **Chat & Ticket Comments Context Menu (`MessageContextMenu`)**:
+  - Copy Message/Note Text and Direct Permalink (automatically blocked on internal notes when viewed by clients to prevent unauthorized sharing).
+  - Copy Formatted Quote: Formats a clean markdown blockquote (`> @Author: "snippet..."`) directly to clipboard.
+  - Quote-Reply in Thread: Quotes the sender's name and message snippet directly into the conversation composer.
+  - Inline Edit & Delete for own messages (accessible to managers for moderation) with confirmation dialogs.
+  - Context-Aware Failed Message State: Automatically shows "Retry Sending" and "Discard Message" on failed messages while isolating uncommitted drafts from public actions.
+- **Team Member & Profile Context Menu (`TeamMemberContextMenu`)**:
+  - Available across user management tables, member cards, and assignee rows.
+  - Actions: View Member Profile, Copy Name, Copy Email, Copy Profile Link, and View Assigned Tickets (`/dashboard/tickets?assigneeId=...`).
+  - Quick Assign: Assign active ticket to member with a single click.
+  - Role Management Submenu: Super Admin can change any user's role; Managers can manage agent roles in their own department; disallows self-role modification.
+  - Activation Controls: Activate or deactivate accounts with immediate optimistic UI (self-deactivation prevented).
+  - Member Removal: Exclusively available to Super Admin for non-admin accounts, protected with an `AlertDialog` confirmation.
+- **Ticket Assignment Context Menu (`AssignmentContextMenu`)**:
+  - Available on ticket table assignee cells, Kanban card assignee badges, and ticket detail assignment panels.
+  - Actions: Reassign Ticket (submenu of assignable department agents), Remove Current Assignee (unassign), Copy Assignee Details (`Name <email>`), Copy Email, View Assignee Profile, and View Other Tickets Assigned to Member.
+  - Closed Gate: Automatically indicates read-only status and blocks reassignments when a ticket is closed.
+- **Notification Context Menu (`NotificationContextMenu`) & Bulk Actions**:
+  - Available on the header notification bell dropdown items and full notification page (`/dashboard/notifications`).
+  - Actions: Open Related Ticket, Mark as Read (when unread) / Mark as Unread (when read), Copy Ticket Link, Copy Notification Text, Dismiss Notification, and Delete Notification with confirmation dialog.
+  - State Adaptation: Dynamic icon and label adapts instantly between read and unread states.
+  - Collection & Bulk Operations: Multi-select checkbox mode, "Mark Selected as Read", "Mark Selected as Unread", "Delete Selected", and "Clear All Notifications".
+  - Instant Optimistic State: Dispatches synced window events (`ticketflow:notification-read`, `ticketflow:notification-unread`, `ticketflow:notifications-read-all`, `ticketflow:notification-removed`) updating unread badge counters immediately with rollback safety.
+- **Activity Feed & Audit Context Menu (`ActivityContextMenu`)**:
+  - Available on system timeline dividers, audit event entries, and workspace activity feeds.
+  - Actions: Open Related Ticket, View Associated User Profile (`/dashboard/users?search=...`), Copy Activity Details, Copy Ticket Link, and View Full Activity Details modal with timestamp and immutable record notice.
+  - Historical Audit Integrity: Strictly prohibits edit or delete operations on audit logs, guaranteeing tamper-proof event traceability.
 - **Behavior & Accessibility**:
   - Full keyboard navigation with arrow keys, `Enter`, and `Escape`.
   - Viewport-aware boundary positioning that avoids screen overflow.

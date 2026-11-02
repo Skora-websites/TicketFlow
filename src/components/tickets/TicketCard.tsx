@@ -6,7 +6,7 @@ import { Eye } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useSession } from "next-auth/react";
-import { TicketContextMenu } from "@/components/productivity";
+import { TicketContextMenu, AssignmentContextMenu } from "@/components/productivity";
 import {
   StatusBadge,
   PriorityBadge,
@@ -41,7 +41,7 @@ export interface TicketCardTicket {
   } | null;
 }
 
-interface TicketCardProps {
+export interface TicketCardProps {
   ticket: TicketCardTicket;
   variant?: "default" | "compact" | "detailed";
   showDepartment?: boolean;
@@ -49,6 +49,8 @@ interface TicketCardProps {
   href?: string;
   onClick?: () => void;
   onQuickPreview?: (ticket: TicketCardTicket) => void;
+  teamMembers?: { _id: string; name: string; role?: string; avatar?: string }[];
+  onAssign?: (ticket: TicketCardTicket, assigneeId: string | null) => Promise<void> | void;
   className?: string;
 }
 
@@ -60,6 +62,8 @@ export function TicketCard({
   href,
   onClick,
   onQuickPreview,
+  teamMembers,
+  onAssign,
   className,
 }: TicketCardProps) {
   const { data: session } = useSession();
@@ -102,9 +106,17 @@ export function TicketCard({
             </button>
           )}
           {assignee && (
-            <span className="hidden sm:inline-flex" title={`Assigned to ${assignee.name}`}>
-              <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
-            </span>
+            <AssignmentContextMenu
+              ticket={ticket as any}
+              currentUserId={sessionUserId}
+              currentUserRole={sessionUserRole}
+              teamMembers={teamMembers}
+              onAssign={(newAssigneeId) => onAssign?.(ticket, newAssigneeId)}
+            >
+              <span className="hidden sm:inline-flex cursor-context-menu" title={`Assigned to ${assignee.name}`}>
+                <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
+              </span>
+            </AssignmentContextMenu>
           )}
           <span className="whitespace-nowrap font-mono text-xs">{timeAgo}</span>
         </div>
@@ -197,12 +209,28 @@ export function TicketCard({
           </div>
           <div className="flex items-center justify-between pt-1 gap-2">
             {assignee ? (
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0">
-                <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
-                <span className="truncate max-w-[100px] sm:max-w-[120px] font-medium text-foreground">{assignee.name}</span>
-              </div>
+              <AssignmentContextMenu
+                ticket={ticket as any}
+                currentUserId={sessionUserId}
+                currentUserRole={sessionUserRole}
+                teamMembers={teamMembers}
+                onAssign={(newAssigneeId) => onAssign?.(ticket, newAssigneeId)}
+              >
+                <div className="flex items-center gap-1.5 text-xs text-muted-foreground min-w-0 cursor-context-menu">
+                  <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
+                  <span className="truncate max-w-[100px] sm:max-w-[120px] font-medium text-foreground">{assignee.name}</span>
+                </div>
+              </AssignmentContextMenu>
             ) : (
-              <span className="text-xs text-muted-foreground">Unassigned</span>
+              <AssignmentContextMenu
+                ticket={ticket as any}
+                currentUserId={sessionUserId}
+                currentUserRole={sessionUserRole}
+                teamMembers={teamMembers}
+                onAssign={(newAssigneeId) => onAssign?.(ticket, newAssigneeId)}
+              >
+                <span className="text-xs text-muted-foreground cursor-context-menu">Unassigned</span>
+              </AssignmentContextMenu>
             )}
             <div className="flex items-center gap-1.5 shrink-0">
               {onQuickPreview && (

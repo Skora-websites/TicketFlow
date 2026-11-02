@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { BaseDraft } from "./types";
 import {
   saveDraftToStorage,
@@ -27,18 +28,21 @@ const DraftResumeContext = createContext<DraftResumeContextValue | null>(null);
 export function DraftResumeProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id;
   const [drafts, setDrafts] = useState<BaseDraft<any>[]>([]);
   const [activeResumeId, setActiveResumeId] = useState<string | null>(null);
 
-  // Initialize drafts from localStorage on mount
+  // Initialize and isolate drafts from localStorage based on authenticated user
   useEffect(() => {
-    const loaded = loadAllDraftsFromStorage();
+    const loaded = loadAllDraftsFromStorage(currentUserId);
     setDrafts(loaded);
-  }, []);
+  }, [currentUserId]);
 
   const saveDraft = useCallback(<T = any>(draftInput: Omit<BaseDraft<T>, "updatedAt">) => {
     const updatedDraft: BaseDraft<T> = {
       ...draftInput,
+      userId: currentUserId || draftInput.userId,
       updatedAt: Date.now(),
     };
 

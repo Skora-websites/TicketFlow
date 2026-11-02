@@ -86,9 +86,9 @@ export function CommentThread({
     }
   };
 
-  const deleteComment = async (comment: CommentModel) => {
+  const deleteComment = async (comment: CommentModel, force = false) => {
     const commentId = comment._id.toString();
-    if (confirmDeleteId !== commentId) {
+    if (!force && confirmDeleteId !== commentId) {
       setConfirmDeleteId(commentId);
       return;
     }
@@ -219,7 +219,7 @@ export function CommentThread({
               canEdit={canEdit}
               canDelete={canDelete}
               onEdit={() => startEdit(comment)}
-              onDelete={() => deleteComment(comment)}
+              onDelete={() => deleteComment(comment, true)}
               onReply={(body, author) => {
                 setReplyText(`> @${author}: "${body.slice(0, 100)}${body.length > 100 ? "…" : ""}"\n\n`);
               }}

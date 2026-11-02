@@ -42,6 +42,7 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { TeamMemberContextMenu } from "@/components/productivity";
 
 const userFormSchema = z.object({
   name: z.string().min(2, "Name must be at least 2 characters"),
@@ -342,6 +343,31 @@ export function UsersContent() {
     } catch (err) {
       setUsers(prevUsers);
       toast({ title: "Error", description: err instanceof Error ? err.message : "Failed to update user", variant: "destructive" });
+    }
+  };
+
+  const handleChangeRole = async (userId: string, newRole: string) => {
+    const prevUsers = users;
+    // Optimistically update user role immediately
+    setUsers((prev) => prev.map((u) => (u._id === userId ? { ...u, role: newRole } : u)));
+    try {
+      const res = await fetch(`/api/users/${userId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role: newRole }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update role");
+      }
+      toast({ title: "Role updated" });
+    } catch (err) {
+      setUsers(prevUsers);
+      toast({
+        title: "Error",
+        description: err instanceof Error ? err.message : "Failed to update role",
+        variant: "destructive",
+      });
     }
   };
 
@@ -651,64 +677,76 @@ export function UsersContent() {
           ) : (
             <div className={cn("divide-y divide-border transition-opacity duration-200", isRefetching ? "opacity-60 pointer-events-none" : "opacity-100")}>
               {users.map((user) => (
-                <div key={user._id} className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/50 transition-colors">
-                  <div className="flex items-center gap-3 min-w-0">
-                    <UserAvatar name={user.name} email={user.email} role={user.role as any} size="md" avatar={user.avatar} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-foreground text-sm truncate">{user.name}</p>
-                      <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                <TeamMemberContextMenu
+                  key={user._id}
+                  member={user}
+                  currentUserId={session?.user?.id}
+                  currentUserRole={session?.user?.role}
+                  currentUserDepartmentId={(session?.user as any)?.departmentId}
+                  onViewProfile={openEditDialog}
+                  onChangeRole={handleChangeRole}
+                  onToggleActive={handleToggleActive}
+                  onDeleteMember={() => handleDelete(user._id)}
+                >
+                  <div className="p-3.5 sm:p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-muted/50 transition-colors">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <UserAvatar name={user.name} email={user.email} role={user.role as any} size="md" avatar={user.avatar} />
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground text-sm truncate">{user.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{user.email}</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0 border-t border-border/50 sm:border-t-0">
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      <Badge variant="outline" className={cn("text-[10px] sm:text-xs px-2 py-0.5", roleColors[user.role])}>
-                        {roleLabels[user.role] || user.role}
-                      </Badge>
-                      {user.departmentId && (
-                        <DepartmentBadge name={user.departmentId.name} color={user.departmentId.color} />
-                      )}
-                      <Badge variant={user.active ? "success" : "secondary"} className="gap-1 text-[10px] sm:text-xs">
-                        {user.active ? (
-                          <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-success" />
-                            Active
-                          </>
-                        ) : (
-                          <>
-                            <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
-                            Inactive
-                          </>
+                    <div className="flex flex-wrap items-center justify-between sm:justify-end gap-2 pt-1 sm:pt-0 border-t border-border/50 sm:border-t-0">
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        <Badge variant="outline" className={cn("text-[10px] sm:text-xs px-2 py-0.5", roleColors[user.role])}>
+                          {roleLabels[user.role] || user.role}
+                        </Badge>
+                        {user.departmentId && (
+                          <DepartmentBadge name={user.departmentId.name} color={user.departmentId.color} />
                         )}
-                      </Badge>
-                    </div>
-                    <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => openEditDialog(user)}
-                        aria-label={`Edit ${user.name}`}
-                      >
-                        <Edit className="w-3.5 h-3.5" />
-                      </Button>
-                      <Button
-                        variant="outline"
-                        size="icon-sm"
-                        onClick={() => handleToggleActive(user)}
-                        aria-label={user.active ? `Deactivate ${user.name}` : `Activate ${user.name}`}
-                      >
-                        {user.active ? <Power className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
-                      </Button>
-                      <Button
-                        variant="destructive-outline"
-                        size="icon-sm"
-                        onClick={() => handleDelete(user._id)}
-                        aria-label={`Delete ${user.name}`}
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </Button>
+                        <Badge variant={user.active ? "success" : "secondary"} className="gap-1 text-[10px] sm:text-xs">
+                          {user.active ? (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                              Active
+                            </>
+                          ) : (
+                            <>
+                              <span className="w-1.5 h-1.5 rounded-full bg-muted-foreground" />
+                              Inactive
+                            </>
+                          )}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center gap-1.5 ml-auto sm:ml-0">
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(user)}
+                          aria-label={`Edit ${user.name}`}
+                        >
+                          <Edit className="w-3.5 h-3.5" />
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => handleToggleActive(user)}
+                          aria-label={user.active ? `Deactivate ${user.name}` : `Activate ${user.name}`}
+                        >
+                          {user.active ? <Power className="w-3.5 h-3.5" /> : <UserPlus className="w-3.5 h-3.5" />}
+                        </Button>
+                        <Button
+                          variant="destructive-outline"
+                          size="icon-sm"
+                          onClick={() => handleDelete(user._id)}
+                          aria-label={`Delete ${user.name}`}
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
+                </TeamMemberContextMenu>
               ))}
 
               {/* Pagination */}

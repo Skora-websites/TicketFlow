@@ -16,6 +16,7 @@ import type { ITicket, IComment, IUser, IDepartment } from "@/lib/db/models";
 import { canSetPriority, isConversationParticipant, isReceivingManager, toTransferRef } from "@/lib/transfer";
 import { TRANSFERS_ENABLED } from "@/lib/features";
 import { cn } from "@/lib/utils";
+import { AssignmentContextMenu } from "@/components/productivity";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -755,24 +756,32 @@ export function TicketDetail({
                 </div>
 
                 {canAssign && (
-                  <div>
-                    <Label className="mb-2 block text-sm font-medium" htmlFor="ticket-assignee">
-                      Assign to
-                    </Label>
-                    <Select value={editAssignee} onValueChange={handleAssigneeChange}>
-                      <SelectTrigger id="ticket-assignee" className="w-full">
-                        <SelectValue placeholder="Assign to…" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                        {agents.map((a) => (
-                          <SelectItem key={a.userId} value={a.userId}>
-                            {a.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <AssignmentContextMenu
+                    ticket={ticket as any}
+                    currentUserId={currentUser.id}
+                    currentUserRole={currentUser.role}
+                    teamMembers={agents.map((a) => ({ _id: a.userId, name: a.name }))}
+                    onAssign={(assigneeId) => handleAssigneeChange(assigneeId || UNASSIGNED)}
+                  >
+                    <div>
+                      <Label className="mb-2 block text-sm font-medium" htmlFor="ticket-assignee">
+                        Assign to
+                      </Label>
+                      <Select value={editAssignee} onValueChange={handleAssigneeChange}>
+                        <SelectTrigger id="ticket-assignee" className="w-full">
+                          <SelectValue placeholder="Assign to…" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                          {agents.map((a) => (
+                            <SelectItem key={a.userId} value={a.userId}>
+                              {a.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </AssignmentContextMenu>
                 )}
 
                 {canForward && (

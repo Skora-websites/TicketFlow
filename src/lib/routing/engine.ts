@@ -242,7 +242,7 @@ async function pickBestAgent(
     if (status === "available") score += 25;
     else if (status === "busy") score += 5;
     else if (status === "away") score += 1;
-    else score -= 50; // offline heavily penalised
+    else score -= 100; // offline excluded
 
     // Outside configured working hours: deprioritise but keep assignable
     if (isWithinWorkingHours(availability) === false) score -= 25;
@@ -251,8 +251,8 @@ async function pickBestAgent(
     const headroom = Math.max(0, capacity - load);
     score += Math.min(20, headroom * 4);
 
-    // Penalise overloaded
-    if (load >= capacity) score -= 30;
+    // Hard ceiling: agents at or exceeding capacity cannot receive more tickets
+    if (load >= capacity || status === "offline") score = -999;
 
     return {
       userId: c._id.toString(),
@@ -265,11 +265,13 @@ async function pickBestAgent(
     };
   });
 
-  // Highest score wins. Tie-break by lowest current load, then most recent activity.
+  // Highest score wins. Tie-break by lowest current load, then least recent assignment (round-robin).
   const top = scores.sort((a, b) => {
     if (b.score !== a.score) return b.score - a.score;
     if (a.load !== b.load) return a.load - b.load;
-    return 0;
+    const aTime = availabilityMap.get(a.userId)?.lastSeenAt ? new Date(availabilityMap.get(a.userId)!.lastSeenAt).getTime() : 0;
+    const bTime = availabilityMap.get(b.userId)?.lastSeenAt ? new Date(availabilityMap.get(b.userId)!.lastSeenAt).getTime() : 0;
+    return aTime - bTime;
   })[0];
 
   return top && top.score > 0 ? top : null; // no suitable (available, score>0) agent → leave unassigned
@@ -318,7 +320,7 @@ export async function routeTicket(
     if (!resolvedDepartmentId && rule.fallbackDepartmentId) actionDeptIds.add(rule.fallbackDepartmentId.toString());
 
     const [actionUsers, actionDepts] = await Promise.all([
-      actionUserIds.size ? User.find({ _id: { $in: [...actionUserIds] } }).select("_id name departmentId").lean() : Promise.resolve([]),
+      actionUserIds.size ? User.find({ _id: { $in: [...actionUserIds] }, active: true }).select("_id name departmentId").lean() : Promise.resolve([]),
       actionDeptIds.size ? Department.find({ _id: { $in: [...actionDeptIds] } }).select("_id name").lean() : Promise.resolve([]),
     ]);
     const userNameMap = new Map(actionUsers.map((u) => [u._id.toString(), u.name]));
@@ -326,14 +328,14 @@ export async function routeTicket(
     const deptNameMap = new Map(actionDepts.map((d) => [d._id.toString(), d.name]));
 
     for (const action of rule.actions) {
-      if (action.type === "assign_user" && action.targetId) {
+      if (action.type === "assign_user" && action.targetId && userNameMap.has(action.targetId)) {
         resolvedAssigneeId = action.targetId;
         assigneeName = userNameMap.get(action.targetId);
         if (!resolvedDepartmentId) {
           const uDept = userDeptMap.get(action.targetId);
           if (uDept) resolvedDepartmentId = uDept;
         }
-      } else if (action.type === "assign_department" && action.targetId) {
+      } else if (action.type === "assign_department" && action.targetId && deptNameMap.has(action.targetId)) {
         resolvedDepartmentId = action.targetId;
         departmentName = deptNameMap.get(action.targetId);
         if (!resolvedAssigneeId) {
@@ -347,7 +349,7 @@ export async function routeTicket(
     }
 
     // If no explicit assignee from actions, try fallback
-    if (!resolvedAssigneeId && rule.fallbackAssigneeId) {
+    if (!resolvedAssigneeId && rule.fallbackAssigneeId && userNameMap.has(rule.fallbackAssigneeId.toString())) {
       const id = rule.fallbackAssigneeId.toString();
       resolvedAssigneeId = id;
       assigneeName = userNameMap.get(id);
@@ -356,7 +358,7 @@ export async function routeTicket(
         if (uDept) resolvedDepartmentId = uDept;
       }
     }
-    if (!resolvedDepartmentId && rule.fallbackDepartmentId) {
+    if (!resolvedDepartmentId && rule.fallbackDepartmentId && deptNameMap.has(rule.fallbackDepartmentId.toString())) {
       const id = rule.fallbackDepartmentId.toString();
       resolvedDepartmentId = id;
       departmentName = deptNameMap.get(id);
