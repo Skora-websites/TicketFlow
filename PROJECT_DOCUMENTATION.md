@@ -200,9 +200,14 @@ TicketFlow supports enterprise-grade persistent login that preserves user sessio
 
 A uniform, accessible right-click context menu system deployed across all primary workspaces in TicketFlow:
 - **Unified Actions Across Ticket Surfaces**: Available on ticket table rows, Kanban cards, mobile preview cards, and the unassigned queue:
-  - Open Ticket, Quick Peek, Copy Ticket ID, and Copy Direct Link.
-  - Nested Submenus: Change Status (`Open`, `In Progress`, `On Hold`, `Resolved`, `Closed`), Change Priority (`Low`, `Medium`, `High`, `Urgent`), and Assign/Reassign team members.
-  - Duplicate Ticket & Destructive Delete with confirmation modal.
+  - Open Ticket, Quick Peek, Copy Ticket ID, Copy Ticket Title, and Copy Direct Link.
+  - Kanban Fast Moves: One-click "Move to Next Status" and "Move to Previous Status", plus a "Move to Column" submenu listing non-current columns.
+  - Nested Submenus: Change Status (`Open`, `In Progress`, `On Hold`, `Resolved`, `Closed`), Change Priority (`Low`, `Medium`, `High`, `Urgent`), Change Category, and Assign/Reassign team members.
+  - Duplicate Ticket, Archive Ticket, & Destructive Delete with confirmation modal.
+- **Kanban Board & Column-Level Context Menu (`KanbanColumnContextMenu`)**:
+  - Right-clicking empty column space or column header provides column-scoped actions: "New Ticket in [Column]", "Filter to [Column]", and "Refresh Board".
+  - Fluid drag-and-drop between status columns with immediate optimistic UI updates, undo toast notifications, and safe server rollback on failure.
+  - Alternative three-dot overflow dropdown menus on cards for touch and mouse users.
 - **Chat & Ticket Comments Context Menu**:
   - Copy Message/Note Text and Direct Permalink.
   - Quote-Reply in Thread: Quotes the sender's name and message snippet directly into the composer.
