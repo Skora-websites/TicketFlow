@@ -79,17 +79,18 @@ export function MessageContextMenu({
   const authorIdStr =
     authorObj?._id?.toString() ||
     (typeof message.authorId === "string" ? message.authorId : "");
-  const authorName = authorObj?.name || "Author";
-
   const isOwn = currentUserId && authorIdStr ? authorIdStr === currentUserId : false;
+  const authorName = authorObj?.name || (isOwn ? "You" : "Author");
   const isInternal = message.visibility === "internal";
   const isSystem = message.kind === "system";
   const isClosed = ticketStatus === "closed";
 
   const resolvedCanEdit =
-    canEdit !== undefined ? canEdit : isOwn && !isSystem && !isClosed;
+    !isFailed && (canEdit !== undefined ? canEdit : isOwn && !isSystem && !isClosed);
   const resolvedCanDelete =
     canDelete !== undefined ? canDelete : (isOwn && !isSystem) || currentUserRole === "super_admin";
+
+  const canCopyLink = !isFailed && (!isInternal || currentUserRole !== "client");
 
   const handleCopyText = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -104,8 +105,30 @@ export function MessageContextMenu({
     }
   };
 
+  const handleCopyQuote = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    try {
+      const quote = `> @${authorName}: "${message.body.replace(/\n+/g, " ")}"`;
+      await navigator.clipboard.writeText(quote);
+      toast({
+        title: "Quote copied",
+        description: quote.length > 50 ? `${quote.slice(0, 50)}…` : quote,
+      });
+    } catch {
+      toast({ title: "Failed to copy quote", variant: "destructive" });
+    }
+  };
+
   const handleCopyLink = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (isInternal && currentUserRole === "client") {
+      toast({
+        title: "Action not permitted",
+        description: "Internal notes cannot be linked externally.",
+        variant: "destructive",
+      });
+      return;
+    }
     try {
       const link = `${window.location.origin}/dashboard/tickets/${ticketId}#comment-${message._id}`;
       await navigator.clipboard.writeText(link);
@@ -153,12 +176,14 @@ export function MessageContextMenu({
     <>
       <ContextMenu>
         <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-        <ContextMenuContent className="w-52">
+        <ContextMenuContent className="w-56">
           <ContextMenuLabel className="flex items-center gap-1.5 truncate">
-            {isInternal ? (
+            {isFailed ? (
+              <span className="font-semibold text-destructive">Failed Message</span>
+            ) : isInternal ? (
               <>
                 <Lock className="h-3 w-3 text-warning shrink-0" />
-                <span className="text-warning">Internal Note</span>
+                <span className="text-warning font-semibold">Internal Note</span>
               </>
             ) : (
               <span>Message by {isOwn ? "You" : authorName}</span>
@@ -166,56 +191,83 @@ export function MessageContextMenu({
           </ContextMenuLabel>
           <ContextMenuSeparator />
 
-          {/* Failed Retry Option */}
-          {isFailed && onRetry && (
+          {/* Failed Message Actions */}
+          {isFailed ? (
             <>
-              <ContextMenuItem onClick={onRetry} className="text-primary font-semibold">
-                <RotateCcw className="h-4 w-4" />
-                <span>Retry Message</span>
+              {onRetry && (
+                <ContextMenuItem onClick={onRetry} className="text-primary font-semibold">
+                  <RotateCcw className="h-4 w-4" />
+                  <span>Retry Sending</span>
+                </ContextMenuItem>
+              )}
+              <ContextMenuItem onClick={handleCopyText}>
+                <Copy className="h-4 w-4 text-muted-foreground" />
+                <span>Copy Text</span>
               </ContextMenuItem>
-              <ContextMenuSeparator />
+              {onDelete && (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() => onDelete()}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <span>Discard Message</span>
+                  </ContextMenuItem>
+                </>
+              )}
             </>
-          )}
-
-          {/* Copy Message Text */}
-          <ContextMenuItem onClick={handleCopyText}>
-            <Copy className="h-4 w-4 text-muted-foreground" />
-            <span>Copy Text</span>
-          </ContextMenuItem>
-
-          {/* Copy Message Link */}
-          <ContextMenuItem onClick={handleCopyLink}>
-            <Link2 className="h-4 w-4 text-muted-foreground" />
-            <span>Copy Link</span>
-          </ContextMenuItem>
-
-          {/* Reply in thread */}
-          {onReply && !isClosed && (
-            <ContextMenuItem onClick={handleReply}>
-              <Reply className="h-4 w-4 text-muted-foreground" />
-              <span>Reply</span>
-            </ContextMenuItem>
-          )}
-
-          {/* Edit own message */}
-          {resolvedCanEdit && onEdit && (
-            <ContextMenuItem onClick={onEdit}>
-              <Pencil className="h-4 w-4 text-muted-foreground" />
-              <span>Edit Message</span>
-            </ContextMenuItem>
-          )}
-
-          {/* Delete message (Destructive) */}
-          {resolvedCanDelete && onDelete && (
+          ) : (
             <>
-              <ContextMenuSeparator />
-              <ContextMenuItem
-                variant="destructive"
-                onClick={() => setShowDeleteConfirm(true)}
-              >
-                <Trash2 className="h-4 w-4 text-destructive" />
-                <span>Delete Message</span>
+              {/* Copy Message Text */}
+              <ContextMenuItem onClick={handleCopyText}>
+                <Copy className="h-4 w-4 text-muted-foreground" />
+                <span>Copy Text</span>
               </ContextMenuItem>
+
+              {/* Copy Formatted Quote */}
+              <ContextMenuItem onClick={handleCopyQuote}>
+                <Copy className="h-4 w-4 text-muted-foreground" />
+                <span>Copy Quote</span>
+              </ContextMenuItem>
+
+              {/* Copy Direct Permlink */}
+              {canCopyLink && (
+                <ContextMenuItem onClick={handleCopyLink}>
+                  <Link2 className="h-4 w-4 text-muted-foreground" />
+                  <span>Copy Link</span>
+                </ContextMenuItem>
+              )}
+
+              {/* Reply in thread */}
+              {onReply && !isClosed && (
+                <ContextMenuItem onClick={handleReply}>
+                  <Reply className="h-4 w-4 text-muted-foreground" />
+                  <span>Reply in Thread</span>
+                </ContextMenuItem>
+              )}
+
+              {/* Edit own message */}
+              {resolvedCanEdit && onEdit && (
+                <ContextMenuItem onClick={onEdit}>
+                  <Pencil className="h-4 w-4 text-muted-foreground" />
+                  <span>Edit Message</span>
+                </ContextMenuItem>
+              )}
+
+              {/* Delete message (Destructive) */}
+              {resolvedCanDelete && onDelete && (
+                <>
+                  <ContextMenuSeparator />
+                  <ContextMenuItem
+                    variant="destructive"
+                    onClick={() => setShowDeleteConfirm(true)}
+                  >
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                    <span>Delete {isInternal ? "Note" : "Message"}</span>
+                  </ContextMenuItem>
+                </>
+              )}
             </>
           )}
         </ContextMenuContent>

@@ -105,8 +105,16 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       ticketNumber: string;
       title: string;
       category: string;
+      status: string;
       transfer?: Record<string, unknown> | null;
     };
+
+    if (ticketDoc.status === "closed") {
+      return NextResponse.json(
+        { error: "Cannot transfer a closed ticket. Reopen the ticket first." },
+        { status: 409 }
+      );
+    }
 
     if (ticketDoc.transfer && ticketDoc.transfer.status === "pending") {
       return NextResponse.json(
@@ -285,6 +293,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     const ticket = await Ticket.findById(id).lean();
     if (!ticket) {
       return NextResponse.json({ error: "Ticket not found" }, { status: 404 });
+    }
+
+    if (ticket.status === "closed") {
+      return NextResponse.json(
+        { error: "Cannot decide a transfer on a closed ticket. Reopen the ticket first." },
+        { status: 409 }
+      );
     }
 
     if (!canDecideTransfer({ id: user.id, role: user.role, departmentId: user.departmentId }, ticket.transfer)) {

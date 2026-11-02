@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils";
 import { TRANSFERS_ENABLED } from "@/lib/features";
 import { StatusBadge, PriorityBadge, UserAvatar, DepartmentBadge } from "./badges";
 import { ticketHref, type TicketCardTicket } from "./TicketCard";
-import { TicketContextMenu } from "@/components/productivity";
+import { TicketContextMenu, AssignmentContextMenu } from "@/components/productivity";
 import {
   Select,
   SelectContent,
@@ -460,41 +460,54 @@ export function TicketTable({
                   <PriorityBadge priority={t.priority} />
                 </td>
                 <td className="px-3 py-2.5">
-                  {isManager ? (
-                    <Select
-                      value={assignee ? assignee._id?.toString() : UNASSIGNED}
-                      onValueChange={(next) => assignTo(t, next)}
-                      disabled={busyId === t._id}
-                    >
-                      <SelectTrigger
-                        className="h-7 w-36 px-2 text-xs"
-                        aria-label={`Assign ${t.ticketNumber}`}
-                      >
-                        {assignee ? (
-                          <span className="truncate">{assignee.name}</span>
-                        ) : (
-                          <span className="truncate text-muted-foreground">Assign to…</span>
-                        )}
-                      </SelectTrigger>
-                      <SelectContent>
-                        {assignee && <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>}
-                        {teamMembers.map((m) => (
-                          <SelectItem key={m._id} value={m._id}>
-                            {m.name}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  ) : assignee ? (
-                    <span title={assignee.name}>
-                      <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
-                    </span>
-                  ) : (
-                    <span
-                      className="inline-block h-6 w-6 rounded-full border border-dashed border-muted-foreground/40"
-                      title="Unassigned"
-                    />
-                  )}
+                  <AssignmentContextMenu
+                    ticket={t}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    teamMembers={teamMembers}
+                    onAssign={(memberId) => {
+                      assignTo(t, memberId || UNASSIGNED);
+                    }}
+                  >
+                    <div>
+                      {isManager ? (
+                        <Select
+                          value={assignee ? assignee._id?.toString() : UNASSIGNED}
+                          onValueChange={(next) => assignTo(t, next)}
+                          disabled={busyId === t._id}
+                        >
+                          <SelectTrigger
+                            className="h-7 w-36 px-2 text-xs"
+                            aria-label={`Assign ${t.ticketNumber}`}
+                          >
+                            {assignee ? (
+                              <span className="truncate">{assignee.name}</span>
+                            ) : (
+                              <span className="truncate text-muted-foreground">Assign to…</span>
+                            )}
+                          </SelectTrigger>
+                          <SelectContent>
+                            {assignee && <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>}
+                            {teamMembers.map((m) => (
+                              <SelectItem key={m._id} value={m._id}>
+                                {m.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      ) : assignee ? (
+                        <span title={assignee.name} className="inline-flex items-center gap-1.5 cursor-context-menu">
+                          <UserAvatar name={assignee.name} size="sm" avatar={assignee.avatar} />
+                          <span className="text-xs text-foreground truncate max-w-[100px] hidden sm:inline">{assignee.name}</span>
+                        </span>
+                      ) : (
+                        <span
+                          className="inline-block h-6 w-6 rounded-full border border-dashed border-muted-foreground/40 cursor-context-menu"
+                          title="Unassigned"
+                        />
+                      )}
+                    </div>
+                  </AssignmentContextMenu>
                 </td>
                 <td className="hidden whitespace-nowrap px-3 py-2.5 text-right font-mono text-xs tabular-nums text-muted-foreground lg:table-cell">
                   {format(new Date(t.createdAt), "MMM d, yyyy")}

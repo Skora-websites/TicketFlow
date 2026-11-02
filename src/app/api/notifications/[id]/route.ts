@@ -19,11 +19,21 @@ export async function PATCH(
       return NextResponse.json({ error: "Invalid notification ID" }, { status: 400 });
     }
 
+    let read = true;
+    try {
+      const body = await _request.json();
+      if (typeof body?.read === "boolean") {
+        read = body.read;
+      }
+    } catch {
+      // default read: true
+    }
+
     await connectDB();
 
     const updated = await Notification.findOneAndUpdate(
       { _id: id, userId: user.id },
-      { read: true },
+      { read },
       { returnDocument: "after" }
     ).lean();
 

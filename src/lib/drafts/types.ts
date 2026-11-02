@@ -9,6 +9,7 @@ export interface BaseDraft<T = Record<string, any>> {
   data: T;
   isMinimized: boolean;
   updatedAt: number; // timestamp in ms
+  userId?: string;
 }
 
 export interface TicketDraftData {

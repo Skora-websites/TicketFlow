@@ -9,7 +9,7 @@ import { Timestamp } from "@/components/ui/timestamp";
 import { cn } from "@/lib/utils";
 import { useDraftResume } from "@/lib/drafts/context";
 import { CommentDraftData } from "@/lib/drafts/types";
-import { MessageContextMenu } from "@/components/productivity";
+import { MessageContextMenu, ActivityContextMenu } from "@/components/productivity";
 
 type AnyComment = CommentModel & { authorId?: UserType };
 
@@ -345,9 +345,9 @@ export function ConversationPanel({
     }
   };
 
-  const deleteComment = async (comment: CommentModel) => {
+  const deleteComment = async (comment: CommentModel, force = false) => {
     const commentId = comment._id.toString();
-    if (confirmDeleteId !== commentId) {
+    if (!force && confirmDeleteId !== commentId) {
       setConfirmDeleteId(commentId);
       return;
     }
@@ -487,16 +487,29 @@ export function ConversationPanel({
           const hasAttachment = !!comment.attachment;
           const createdAt = new Date(comment.createdAt);
 
-          // System events: centered divider — no avatar, no bubble.
+          // System events: centered divider — wrapped with ActivityContextMenu for audit event actions
           if (isSystem) {
             return (
-              <div key={commentId} className="flex items-center gap-3 py-2" aria-label="Event">
-                <div className="h-px flex-1 bg-border" />
-                <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground">
-                  {comment.body} · <Timestamp date={comment.createdAt} />
-                </span>
-                <div className="h-px flex-1 bg-border" />
-              </div>
+              <ActivityContextMenu
+                key={commentId}
+                activity={{
+                  id: commentId,
+                  ticketId,
+                  details: comment.body,
+                  user: author?.name || "System",
+                  timestamp: comment.createdAt,
+                  type: "system_event",
+                }}
+                userRole={currentUserRole}
+              >
+                <div className="flex items-center gap-3 py-2 cursor-pointer group" aria-label="Event">
+                  <div className="h-px flex-1 bg-border group-hover:bg-primary/40 transition-colors" />
+                  <span className="font-mono text-[11px] uppercase tracking-wide text-muted-foreground group-hover:text-foreground transition-colors">
+                    {comment.body} · <Timestamp date={comment.createdAt} />
+                  </span>
+                  <div className="h-px flex-1 bg-border group-hover:bg-primary/40 transition-colors" />
+                </div>
+              </ActivityContextMenu>
             );
           }
 
@@ -513,7 +526,7 @@ export function ConversationPanel({
                 canEdit={canEdit}
                 canDelete={canDelete}
                 onEdit={() => startEdit(comment)}
-                onDelete={() => deleteComment(comment)}
+                onDelete={() => deleteComment(comment, true)}
                 onReply={handleReplyTo}
               >
                 <div className="flex justify-end py-1.5">
@@ -613,7 +626,7 @@ export function ConversationPanel({
               currentUserRole={currentUserRole}
               canEdit={false}
               canDelete={canDelete}
-              onDelete={() => deleteComment(comment)}
+              onDelete={() => deleteComment(comment, true)}
               onReply={handleReplyTo}
             >
               <div className="flex items-end gap-2 py-1.5" aria-label={`Message by ${author?.name || "unknown"}`}>
@@ -667,7 +680,12 @@ export function ConversationPanel({
             isFailed={m.state === "failed"}
             onRetry={() => retryPending(m.localId)}
             canEdit={false}
-            canDelete={false}
+            canDelete={m.state === "failed"}
+            onDelete={
+              m.state === "failed"
+                ? () => setPending((p) => p.filter((item) => item.localId !== m.localId))
+                : undefined
+            }
           >
             <div className="flex justify-end py-1.5">
               <div

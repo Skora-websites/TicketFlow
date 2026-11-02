@@ -16,6 +16,7 @@ import {
 import {
   TicketContextMenu,
   KanbanColumnContextMenu,
+  AssignmentContextMenu,
 } from "@/components/productivity";
 import {
   DropdownMenu,
@@ -173,6 +174,42 @@ export function TicketKanbanBoard({
     }
   };
 
+  // Optimistic assignment transition
+  const handleAssign = async (ticket: TicketCardTicket, newAssigneeId: string | null) => {
+    const ticketId = String(ticket._id || "");
+    if (!ticketId) return;
+    const prevAssignee = ticket.assigneeId;
+    const newAssigneeObj = newAssigneeId
+      ? teamMembers?.find((m) => m._id === newAssigneeId) || { _id: newAssigneeId, name: "Assigned" }
+      : null;
+
+    setTickets((prev) =>
+      prev.map((t) => (t._id === ticketId ? { ...t, assigneeId: newAssigneeObj as any } : t))
+    );
+
+    try {
+      const res = await fetch(`/api/tickets/${ticketId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ assigneeId: newAssigneeId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.error || "Failed to update assignment");
+      }
+      if (onRefresh) onRefresh();
+    } catch (err) {
+      setTickets((prev) =>
+        prev.map((t) => (t._id === ticketId ? { ...t, assigneeId: prevAssignee } : t))
+      );
+      toast({
+        title: "Assignment error",
+        description: err instanceof Error ? err.message : "Failed to change assignment",
+        variant: "destructive",
+      });
+    }
+  };
+
   // Drag and Drop handlers
   const handleDragStart = (e: React.DragEvent, ticketId: string) => {
     e.dataTransfer.setData("text/plain", ticketId);
@@ -293,6 +330,7 @@ export function TicketKanbanBoard({
                           categories={categories}
                           isKanban={true}
                           onStatusChange={handleStatusChange}
+                          onAssign={handleAssign}
                           onQuickPreview={onQuickPreview}
                         >
                           <div
@@ -386,13 +424,28 @@ export function TicketKanbanBoard({
                             <div className="flex items-center justify-between gap-2 pt-2 border-t border-border/50 text-[11px] text-muted-foreground">
                               <CategoryBadge category={t.category} />
                               <div className="flex items-center gap-1.5 shrink-0">
-                                {assignee && (
-                                  <UserAvatar
-                                    name={assignee.name || "Assigned"}
-                                    size="sm"
-                                    avatar={assignee.avatar}
-                                  />
-                                )}
+                                <AssignmentContextMenu
+                                  ticket={t}
+                                  currentUserId={currentUserId}
+                                  currentUserRole={currentUserRole}
+                                  teamMembers={teamMembers}
+                                  onAssign={(assigneeId) => handleAssign(t, assigneeId)}
+                                >
+                                  <div className="flex items-center gap-1.5 cursor-context-menu">
+                                    {assignee ? (
+                                      <UserAvatar
+                                        name={assignee.name || "Assigned"}
+                                        size="sm"
+                                        avatar={assignee.avatar}
+                                      />
+                                    ) : (
+                                      <span
+                                        className="inline-block h-5 w-5 rounded-full border border-dashed border-muted-foreground/40"
+                                        title="Unassigned"
+                                      />
+                                    )}
+                                  </div>
+                                </AssignmentContextMenu>
                                 <span className="font-mono text-[10px]">{timeAgo}</span>
                               </div>
                             </div>

@@ -100,6 +100,7 @@ export interface TicketContextMenuProps {
   onDelete?: (ticket: TicketCardTicket) => Promise<void> | void;
   onDuplicate?: (ticket: TicketCardTicket) => Promise<void> | void;
   onQuickPreview?: (ticket: TicketCardTicket) => void;
+  onRefresh?: () => Promise<void> | void;
   disabled?: boolean;
   children: React.ReactNode;
 }
@@ -119,6 +120,7 @@ export function TicketContextMenu({
   onDelete,
   onDuplicate,
   onQuickPreview,
+  onRefresh,
   disabled = false,
   children,
 }: TicketContextMenuProps) {

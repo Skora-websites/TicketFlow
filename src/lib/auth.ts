@@ -25,7 +25,13 @@ export function invalidateSessionCheck(userId: string) {
 export async function revokeAuthSession(sessionId: string) {
   try {
     await connectDB();
-    await AuthSession.updateOne({ sessionId }, { $set: { isValid: false } });
+    const sessionDoc = await AuthSession.findOneAndUpdate(
+      { sessionId },
+      { $set: { isValid: false } }
+    ).select("userId");
+    if (sessionDoc?.userId) {
+      invalidateSessionCheck(sessionDoc.userId.toString());
+    }
   } catch (err) {
     console.warn("Failed to revoke AuthSession:", err);
   }

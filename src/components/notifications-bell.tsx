@@ -14,6 +14,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { NotificationContextMenu } from "@/components/productivity/NotificationContextMenu";
 
 interface NotifItem {
   id: string;
@@ -71,6 +72,16 @@ export function NotificationsBell() {
         }));
       }
     };
+    const onUnreadSingle = (e: Event) => {
+      const targetId = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (targetId) {
+        setNotif((n) => ({
+          ...n,
+          unreadCount: n.unreadCount + (n.items.find((i) => i.id === targetId && i.read) ? 1 : 0),
+          items: n.items.map((i) => (i.id === targetId ? { ...i, read: false } : i)),
+        }));
+      }
+    };
     const onRemoved = (e: Event) => {
       const targetId = (e as CustomEvent<{ id: string }>).detail?.id;
       if (targetId) {
@@ -84,6 +95,7 @@ export function NotificationsBell() {
 
     window.addEventListener("ticketflow:notifications-read-all", onReadAll);
     window.addEventListener("ticketflow:notification-read", onReadSingle);
+    window.addEventListener("ticketflow:notification-unread", onUnreadSingle);
     window.addEventListener("ticketflow:notification-removed", onRemoved);
 
     return () => {
@@ -92,6 +104,7 @@ export function NotificationsBell() {
       window.removeEventListener("focus", run);
       window.removeEventListener("ticketflow:notifications-read-all", onReadAll);
       window.removeEventListener("ticketflow:notification-read", onReadSingle);
+      window.removeEventListener("ticketflow:notification-unread", onUnreadSingle);
       window.removeEventListener("ticketflow:notification-removed", onRemoved);
     };
   }, []);
@@ -108,16 +121,45 @@ export function NotificationsBell() {
     }
   };
 
-  const markRead = async (id: string) => {
+  const toggleRead = async (id: string, newRead: boolean) => {
+    const prev = notif;
+    setNotif((n) => ({
+      ...n,
+      unreadCount: newRead
+        ? Math.max(0, n.unreadCount - (n.items.find((i) => i.id === id && !i.read) ? 1 : 0))
+        : n.unreadCount + (n.items.find((i) => i.id === id && i.read) ? 1 : 0),
+      items: n.items.map((i) => (i.id === id ? { ...i, read: newRead } : i)),
+    }));
+    window.dispatchEvent(
+      new CustomEvent(
+        newRead ? "ticketflow:notification-read" : "ticketflow:notification-unread",
+        { detail: { id } }
+      )
+    );
+    try {
+      const res = await fetch(`/api/notifications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ read: newRead }),
+      });
+      if (!res.ok) throw new Error();
+    } catch {
+      setNotif(prev);
+    }
+  };
+
+  const markRead = (id: string) => toggleRead(id, true);
+
+  const removeNotification = async (id: string) => {
     const prev = notif;
     setNotif((n) => ({
       ...n,
       unreadCount: Math.max(0, n.unreadCount - (n.items.find((i) => i.id === id && !i.read) ? 1 : 0)),
-      items: n.items.map((i) => (i.id === id ? { ...i, read: true } : i)),
+      items: n.items.filter((i) => i.id !== id),
     }));
-    window.dispatchEvent(new CustomEvent("ticketflow:notification-read", { detail: { id } }));
+    window.dispatchEvent(new CustomEvent("ticketflow:notification-removed", { detail: { id } }));
     try {
-      const res = await fetch(`/api/notifications/${id}`, { method: "PATCH" });
+      const res = await fetch(`/api/notifications/${id}`, { method: "DELETE" });
       if (!res.ok) throw new Error();
     } catch {
       setNotif(prev);
@@ -166,36 +208,45 @@ export function NotificationsBell() {
           </div>
         ) : (
           notif.items.map((item) => (
-            <DropdownMenuItem key={item.id} asChild>
-              <Link
-                href={`${ticketBaseHref}${item.ticketId}`}
-                onClick={() => markRead(item.id)}
-                className="flex items-start gap-2.5 rounded-lg"
-              >
-                {/* Unread dot */}
-                <span
-                  className={cn(
-                    "mt-1.5 h-2 w-2 shrink-0 rounded-full",
-                    item.read ? "bg-transparent" : "bg-primary"
-                  )}
-                  aria-hidden
-                />
-                <span className="flex min-w-0 flex-col gap-0.5">
+            <NotificationContextMenu
+              key={item.id}
+              notification={item}
+              userRole={user?.role}
+              onToggleRead={toggleRead}
+              onDismiss={removeNotification}
+              onDelete={removeNotification}
+            >
+              <DropdownMenuItem asChild>
+                <Link
+                  href={`${ticketBaseHref}${item.ticketId}`}
+                  onClick={() => markRead(item.id)}
+                  className="flex items-start gap-2.5 rounded-lg cursor-pointer"
+                >
+                  {/* Unread dot */}
                   <span
-                    className={`truncate text-sm ${
-                      item.read ? "font-normal text-muted-foreground" : "font-medium text-foreground"
-                    }`}
-                  >
-                    {item.title}
+                    className={cn(
+                      "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                      item.read ? "bg-transparent" : "bg-primary"
+                    )}
+                    aria-hidden
+                  />
+                  <span className="flex min-w-0 flex-col gap-0.5">
+                    <span
+                      className={`truncate text-sm ${
+                        item.read ? "font-normal text-muted-foreground" : "font-medium text-foreground"
+                      }`}
+                    >
+                      {item.title}
+                    </span>
+                    <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
+                      {item.ticketNumber}
+                      <span aria-hidden>·</span>
+                      <span className="font-sans">{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}</span>
+                    </span>
                   </span>
-                  <span className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground">
-                    {item.ticketNumber}
-                    <span aria-hidden>·</span>
-                    <span className="font-sans">{formatDistanceToNow(new Date(item.createdAt), { addSuffix: true })}</span>
-                  </span>
-                </span>
-              </Link>
-            </DropdownMenuItem>
+                </Link>
+              </DropdownMenuItem>
+            </NotificationContextMenu>
           ))
         )}
         <DropdownMenuSeparator />

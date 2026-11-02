@@ -38,9 +38,13 @@ export async function GET() {
     if (user.role === "client") {
       baseFilter.requesterId = new mongoose.Types.ObjectId(user.id);
     } else if (user.role === "team") {
-      // Assigned to me OR filed by me (mirrors canAccessTicket + GET /api/tickets).
+      // Assigned to me OR filed by me, plus whole department if ticketAccess is "department" (mirrors canAccessTicket + GET /api/tickets).
       const uid = new mongoose.Types.ObjectId(user.id);
-      baseFilter.$or = [{ assigneeId: uid }, { requesterId: uid }];
+      const teamScope: Record<string, unknown>[] = [{ assigneeId: uid }, { requesterId: uid }];
+      if (user.departmentId && (user.ticketAccess ?? "department") === "department") {
+        teamScope.push({ departmentId: new mongoose.Types.ObjectId(user.departmentId) });
+      }
+      baseFilter.$or = teamScope;
     } else if (user.role === "manager") {
       // Mirrors GET /api/tickets: department tickets plus pending incoming
       // transfers; orphaned (department-less) unassigned tickets count for
