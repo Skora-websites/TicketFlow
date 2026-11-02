@@ -7,3 +7,4 @@ export { RoutingAwareTicketForm } from "./RoutingAwareTicketForm";
 export { TransferDialog } from "./TransferDialog";
 export { TransferPanel, TicketMiniDashboard } from "./TransferPanel";
 export type { TransferSubdoc } from "./TransferPanel";
+export { TicketKanbanBoard, KANBAN_COLUMNS } from "./TicketKanbanBoard";

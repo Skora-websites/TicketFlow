@@ -16,7 +16,7 @@ import {
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { TicketList, TicketCard, ticketHref, TicketCardSkeleton } from "@/components/tickets";
+import { TicketList, TicketCard, ticketHref, TicketCardSkeleton, TicketKanbanBoard } from "@/components/tickets";
 import { Skeleton } from "@/components/ui/skeleton";
 import { TicketTable } from "@/components/tickets/TicketTable";
 import { MobileTicketFilterSheet } from "@/components/tickets/MobileTicketFilterSheet";
@@ -35,6 +35,7 @@ import {
   Sparkles,
   Send,
   LayoutGrid,
+  Columns3,
   List,
   TicketPlus,
 } from "lucide-react";
@@ -93,8 +94,8 @@ export function TicketsContent() {
   const [refreshKey, setRefreshKey] = useState(0);
   // Local input mirrors instantly; the actual query is debounced.
   const [searchInput, setSearchInput] = useState("");
-  // Tabela grid vs table toggle
-  const [viewMode, setViewMode] = useState<"cards" | "table">("cards");
+  // Cards vs Kanban vs Table toggle
+  const [viewMode, setViewMode] = useState<"cards" | "kanban" | "table">("cards");
   // Mobile Quick Preview Bottom Sheet state
   const [previewTicket, setPreviewTicket] = useState<TicketWithRelations | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
@@ -634,6 +635,20 @@ export function TicketsContent() {
                   </button>
                   <button
                     type="button"
+                    onClick={() => setViewMode("kanban")}
+                    className={cn(
+                      "flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-all",
+                      viewMode === "kanban"
+                        ? "bg-card text-foreground shadow-2xs"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                    aria-label="Kanban view"
+                  >
+                    <Columns3 className="h-3.5 w-3.5" />
+                    Kanban
+                  </button>
+                  <button
+                    type="button"
                     onClick={() => setViewMode("table")}
                     className={cn(
                       "flex h-7 items-center gap-1.5 rounded-lg px-2.5 text-xs font-bold transition-all",
@@ -675,6 +690,20 @@ export function TicketsContent() {
                       onQuickPreview={handleQuickPreview}
                     />
                   ))}
+                </div>
+              ) : viewMode === "kanban" ? (
+                <div className="p-3.5 sm:p-5">
+                  <TicketKanbanBoard
+                    tickets={tickets as any}
+                    currentUserId={currentUserId}
+                    currentUserRole={currentUserRole}
+                    categories={categories}
+                    onQuickPreview={handleQuickPreview}
+                    onRefresh={() => setRefreshKey((k) => k + 1)}
+                    onFilterStatus={(status) => {
+                      setFilters((prev) => ({ ...prev, status }));
+                    }}
+                  />
                 </div>
               ) : currentUserId && currentUserRole ? (
                 <div className="hidden sm:block">

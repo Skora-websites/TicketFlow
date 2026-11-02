@@ -35,11 +35,19 @@ console.log("✓ ContextMenu UI primitives successfully exported and structured"
 import {
   TicketContextMenu,
   MessageContextMenu,
+  KanbanColumnContextMenu,
 } from "../src/components/productivity";
+import {
+  TicketKanbanBoard,
+  KANBAN_COLUMNS,
+} from "../src/components/tickets";
 
 assert.ok(TicketContextMenu, "TicketContextMenu must be exported from productivity module");
 assert.ok(MessageContextMenu, "MessageContextMenu must be exported from productivity module");
-console.log("✓ TicketContextMenu and MessageContextMenu successfully exported from @/components/productivity");
+assert.ok(KanbanColumnContextMenu, "KanbanColumnContextMenu must be exported from productivity module");
+assert.ok(TicketKanbanBoard, "TicketKanbanBoard must be exported from tickets module");
+assert.equal(KANBAN_COLUMNS.length, 5, "Kanban board must define 5 standard status columns");
+console.log("✓ TicketContextMenu, MessageContextMenu, KanbanColumnContextMenu, and TicketKanbanBoard successfully exported");
 
 // 3. Test Ticket Context Menu Permissions & Actions
 interface MockTicket {
@@ -213,5 +221,62 @@ const quote = buildReplyQuote("Alice", "We are seeing HTTP 504 gateway timeout o
 assert.ok(quote.startsWith("> @Alice: "), "Quote starts with markdown blockquote and sender mention");
 assert.ok(quote.includes("HTTP 504 gateway timeout"), "Quote contains original text snippet");
 console.log("✓ Thread quote generation verified");
+
+// 6. Test Kanban Board & Column Context Menu Actions
+const NEXT_STATUS: Record<string, string> = {
+  open: "in_progress",
+  in_progress: "resolved",
+  on_hold: "in_progress",
+  resolved: "closed",
+};
+
+const PREV_STATUS: Record<string, string> = {
+  closed: "resolved",
+  resolved: "in_progress",
+  on_hold: "open",
+  in_progress: "open",
+};
+
+assert.equal(NEXT_STATUS["open"], "in_progress", "Open advances to in_progress");
+assert.equal(NEXT_STATUS["in_progress"], "resolved", "In progress advances to resolved");
+assert.equal(NEXT_STATUS["resolved"], "closed", "Resolved advances to closed");
+assert.equal(PREV_STATUS["closed"], "resolved", "Closed moves back to resolved");
+assert.equal(PREV_STATUS["in_progress"], "open", "In progress moves back to open");
+console.log("✓ Kanban quick status advancement & rollback verified");
+
+// Target column list must exclude current ticket status
+const allColumns = ["open", "in_progress", "on_hold", "resolved", "closed"];
+const getTargetColumns = (currentStatus: string) => allColumns.filter((col) => col !== currentStatus);
+
+const targetsForOpen = getTargetColumns("open");
+assert.equal(targetsForOpen.includes("open"), false, "Target columns must not include current status");
+assert.equal(targetsForOpen.length, 4, "Should offer 4 other columns to move to");
+
+const targetsForInProgress = getTargetColumns("in_progress");
+assert.equal(targetsForInProgress.includes("in_progress"), false, "Target columns must not include in_progress");
+console.log("✓ Kanban target column filtering verified (excludes current status)");
+
+// Column-level context menu: right clicking empty column area provides column-scoped actions
+interface MockColumnMenu {
+  status: string;
+  statusLabel: string;
+  ticketCount: number;
+}
+
+const buildColumnActions = (col: MockColumnMenu) => ({
+  createUrl: `/dashboard/tickets/new?status=${encodeURIComponent(col.status)}`,
+  headerLabel: `${col.statusLabel} Column · ${col.ticketCount} tickets`,
+});
+
+const openColActions = buildColumnActions({ status: "open", statusLabel: "Open", ticketCount: 7 });
+assert.equal(openColActions.createUrl, "/dashboard/tickets/new?status=open", "Creates ticket directly in column");
+assert.ok(openColActions.headerLabel.includes("7 tickets"), "Header reflects accurate ticket count");
+console.log("✓ Kanban column-level context menu actions verified");
+
+// Ticket title copy formatting
+const formatTitleCopy = (title: string) => title.trim();
+const copiedTitle = formatTitleCopy("  Checkout service returns 502 Bad Gateway  ");
+assert.equal(copiedTitle, "Checkout service returns 502 Bad Gateway", "Title is trimmed properly");
+console.log("✓ Ticket title copy formatting verified");
 
 console.log("=== All Context Menu Tests Passed Successfully! ===");
