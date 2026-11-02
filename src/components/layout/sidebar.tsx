@@ -246,7 +246,13 @@ function SidebarFooter() {
         variant="ghost"
         size="sm"
         className="h-8 w-full justify-start gap-2 rounded-lg text-xs text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-        onClick={() => signOut({ callbackUrl: "/login" })}
+        onClick={async () => {
+          try {
+            await fetch("/api/auth/logout", { method: "POST" });
+          } catch {}
+          document.cookie = "rm=; path=/; max-age=0; samesite=lax";
+          signOut({ callbackUrl: "/login" });
+        }}
       >
         <LogOut className="h-3.5 w-3.5" aria-hidden />
         Log Out

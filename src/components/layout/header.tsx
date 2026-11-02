@@ -216,7 +216,10 @@ export function Header() {
               <DropdownMenuSeparator />
               <DropdownMenuItem
                 className="text-destructive focus:text-destructive"
-                onClick={() => {
+                onClick={async () => {
+                  try {
+                    await fetch("/api/auth/logout", { method: "POST" });
+                  } catch {}
                   document.cookie = "rm=; path=/; max-age=0; samesite=lax";
                   signOut({ callbackUrl: "/login" });
                 }}

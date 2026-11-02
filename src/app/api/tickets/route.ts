@@ -332,6 +332,11 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // If routing didn't set a department, inherit from category's linked department
+    if (!departmentId && categoryDoc.departmentId) {
+      departmentId = new mongoose.Types.ObjectId(categoryDoc.departmentId as any);
+    }
+
     const ticketDoc: Record<string, unknown> = {
       title,
       description,

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { connectDB } from "@/lib/db/mongo";
 import { User } from "@/lib/db/models";
 import { hashPassword } from "@/lib/password";
-import { invalidateSessionCheck } from "@/lib/auth";
+import { invalidateSessionCheck, revokeAllUserSessions } from "@/lib/auth";
 import { z } from "zod";
 
 const schema = z.object({ password: z.string().min(8) });
@@ -42,6 +42,7 @@ export async function POST(
     await user.save();
 
     invalidateSessionCheck(user._id.toString());
+    await revokeAllUserSessions(user._id.toString());
 
     return NextResponse.json({ message: "Password reset successful" });
   } catch (error) {

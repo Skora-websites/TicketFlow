@@ -7,6 +7,7 @@ import { Download, Pencil, Trash2, X, Check, Paperclip } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Timestamp } from "@/components/ui/timestamp";
 import { cn } from "@/lib/utils";
+import { MessageContextMenu } from "@/components/productivity";
 
 interface CommentThreadProps {
   comments: (CommentModel & { authorId?: UserType })[];
@@ -209,11 +210,24 @@ export function CommentThread({
           const canDelete = isOwn || currentUserRole === "super_admin";
 
           return (
-            <article
+            <MessageContextMenu
               key={commentId}
-              className="flex gap-3 py-4"
-              aria-label={`Note ${i + 1} by ${isOwn ? "you" : author?.name || "unknown"}`}
+              message={comment as any}
+              ticketId={comment.ticketId.toString()}
+              currentUserId={currentUserId}
+              currentUserRole={currentUserRole}
+              canEdit={canEdit}
+              canDelete={canDelete}
+              onEdit={() => startEdit(comment)}
+              onDelete={() => deleteComment(comment)}
+              onReply={(body, author) => {
+                setReplyText(`> @${author}: "${body.slice(0, 100)}${body.length > 100 ? "…" : ""}"\n\n`);
+              }}
             >
+              <article
+                className="flex gap-3 py-4"
+                aria-label={`Note ${i + 1} by ${isOwn ? "you" : author?.name || "unknown"}`}
+              >
               <UserAvatar
                 name={author?.name || "Unknown"}
                 role={(isOwn ? currentUserRole : author?.role) as any}
@@ -320,10 +334,11 @@ export function CommentThread({
                 )}
               </div>
             </article>
-          );
-        })}
+          </MessageContextMenu>
+        );
+      })}
 
-        {comments.length === 0 && (
+      {comments.length === 0 && (
           <div className="py-8 text-center">
             <p className="text-sm text-muted-foreground">No notes yet. Record the first one below.</p>
           </div>

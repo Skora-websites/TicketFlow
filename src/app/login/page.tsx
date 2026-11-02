@@ -38,7 +38,7 @@ function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
+  const [remember, setRemember] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState("");
@@ -49,7 +49,7 @@ function LoginForm() {
     setFormError("");
 
     if (remember) {
-      document.cookie = "rm=1; path=/; max-age=86400; samesite=lax";
+      document.cookie = "rm=1; path=/; max-age=15552000; samesite=lax";
     } else {
       document.cookie = "rm=; path=/; max-age=0; samesite=lax";
     }
@@ -82,6 +82,7 @@ function LoginForm() {
   };
 
   const loginAsDemo = async (demoEmail: string) => {
+    document.cookie = "rm=1; path=/; max-age=15552000; samesite=lax";
     setEmail(demoEmail);
     setPassword("wBDWlqZk9uLIA1!");
     setIsLoading(true);
@@ -270,7 +271,7 @@ function LoginForm() {
                     checked={remember}
                     onCheckedChange={(checked: boolean) => setRemember(checked)}
                   />
-                  <span className="text-sm text-muted-foreground">Remember me</span>
+                  <span className="text-sm text-muted-foreground">Keep me signed in for 6 months</span>
                 </Label>
               </div>
 

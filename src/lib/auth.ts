@@ -4,8 +4,11 @@ import Google from "next-auth/providers/google";
 import GitHub from "next-auth/providers/github";
 import { randomBytes } from "node:crypto";
 import { connectDB } from "@/lib/db/mongo";
-import { User } from "@/lib/db/models";
+import { User, AuthSession } from "@/lib/db/models";
 import { verifyPassword, hashPassword } from "@/lib/password";
+
+// 6 months in seconds: 180 days * 24 hours * 60 minutes * 60 seconds
+export const SIX_MONTHS_SECONDS = 180 * 24 * 60 * 60; // 15,552,000s
 
 // Per-process TTL cache for session re-validation lookups (see jwt callback).
 const SESSION_CHECK_TTL_MS = 60_000;
@@ -16,6 +19,27 @@ const sessionUserCache = new Map<string, { checkedAt: number }>();
 // invalidation takes effect on the very next request.
 export function invalidateSessionCheck(userId: string) {
   sessionUserCache.delete(userId);
+}
+
+// Revoke a specific session record in the database
+export async function revokeAuthSession(sessionId: string) {
+  try {
+    await connectDB();
+    await AuthSession.updateOne({ sessionId }, { $set: { isValid: false } });
+  } catch (err) {
+    console.warn("Failed to revoke AuthSession:", err);
+  }
+}
+
+// Revoke all sessions for a user (e.g. password change, deactivation)
+export async function revokeAllUserSessions(userId: string) {
+  try {
+    await connectDB();
+    await AuthSession.updateMany({ userId }, { $set: { isValid: false } });
+    invalidateSessionCheck(userId);
+  } catch (err) {
+    console.warn("Failed to revoke all user sessions:", err);
+  }
 }
 
 // Same mechanism, different semantics: role/department/active changes take
@@ -175,6 +199,8 @@ export const authConfig: NextAuthConfig = {
         // role/department, so we always read from the DB (source of truth).
         await connectDB();
         const dbUser = await User.findOne({ email: user.email.toLowerCase() }).lean();
+        const nowSec = Math.floor(Date.now() / 1000);
+
         if (dbUser) {
           token.id = dbUser._id.toString();
           token.role = dbUser.role;
@@ -192,11 +218,43 @@ export const authConfig: NextAuthConfig = {
           token.colorTheme = "purple";
           token.image = (user as { image?: string }).image || null;
         }
-        if ((user as { remember?: boolean }).remember) {
-          token.remember = true;
-          token.exp = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 120; // 120d when "remember me"
+
+        // Initialize persistent 6-month session metadata with strict absolute cap
+        token.sessionId = randomBytes(24).toString("hex");
+        token.sessionCreatedAt = nowSec;
+        token.absoluteExpiresAt = nowSec + SIX_MONTHS_SECONDS;
+        token.exp = token.absoluteExpiresAt;
+        token.remember = true;
+
+        // Persist session record in DB for server-side revocation tracking
+        try {
+          const userId = dbUser ? dbUser._id : user.id;
+          if (userId) {
+            await AuthSession.create({
+              sessionId: token.sessionId,
+              userId,
+              createdAt: new Date(),
+              expiresAt: new Date(Date.now() + SIX_MONTHS_SECONDS * 1000),
+              lastActiveAt: new Date(),
+              isValid: true,
+            });
+          }
+        } catch (sessErr) {
+          console.warn("Could not persist AuthSession:", sessErr);
         }
+
         return token;
+      }
+
+      // Enforce 6-month hard maximum lifetime: refreshing a token must not
+      // extend the session beyond 180 days from creation.
+      const nowSec = Math.floor(Date.now() / 1000);
+      if (token.absoluteExpiresAt && nowSec > token.absoluteExpiresAt) {
+        token.active = false;
+        return token;
+      }
+      if (token.absoluteExpiresAt && typeof token.exp === "number" && token.exp > token.absoluteExpiresAt) {
+        token.exp = token.absoluteExpiresAt;
       }
 
       // Subsequent requests: periodically re-validate the session user against
@@ -246,6 +304,23 @@ export const authConfig: NextAuthConfig = {
                 }
               }
             }
+
+            // Verify server-side session validity
+            if (token.sessionId && token.active !== false) {
+              const activeSession = await AuthSession.findOne({
+                sessionId: token.sessionId,
+                isValid: true,
+              }).lean();
+
+              if (!activeSession) {
+                token.active = false;
+              } else {
+                AuthSession.updateOne(
+                  { sessionId: token.sessionId },
+                  { $set: { lastActiveAt: new Date() } }
+                ).catch(() => {});
+              }
+            }
           } catch (recheckErr) {
             // shortcut: DB slow or unreachable during background re-check, retain valid signed JWT claims
             console.warn("Session background re-check skipped:", recheckErr);
@@ -277,8 +352,27 @@ export const authConfig: NextAuthConfig = {
         session.user.image = (token.image as string) ?? null;
         session.user.theme = token.theme as "dark" | "light" | "system" | undefined;
         session.user.colorTheme = token.colorTheme as "purple" | "rose" | "lime" | "brown" | undefined;
+        session.sessionId = token.sessionId;
+        session.sessionCreatedAt = token.sessionCreatedAt;
+        session.absoluteExpiresAt = token.absoluteExpiresAt;
       }
       return session;
+    },
+  },
+  events: {
+    async signOut(message) {
+      try {
+        const token = "token" in message ? (message.token as { sessionId?: string }) : null;
+        if (token?.sessionId) {
+          await connectDB();
+          await AuthSession.updateOne(
+            { sessionId: token.sessionId },
+            { $set: { isValid: false } }
+          );
+        }
+      } catch (err) {
+        console.warn("Error invalidating AuthSession on signOut event:", err);
+      }
     },
   },
   pages: {
@@ -287,7 +381,23 @@ export const authConfig: NextAuthConfig = {
   },
   session: {
     strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
+    maxAge: SIX_MONTHS_SECONDS,
+    updateAge: 24 * 60 * 60, // Refresh access token claims daily while active
+  },
+  cookies: {
+    sessionToken: {
+      name:
+        process.env.NODE_ENV === "production"
+          ? "__Secure-authjs.session-token"
+          : "authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "lax",
+        path: "/",
+        secure: process.env.NODE_ENV === "production",
+        maxAge: SIX_MONTHS_SECONDS,
+      },
+    },
   },
   secret:
     process.env.AUTH_SECRET ||
