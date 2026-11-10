@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { getMongoUri } from "@/lib/env";
 
 interface MongooseCache {
   conn: typeof mongoose | null;
@@ -21,9 +22,9 @@ export async function connectDB(): Promise<typeof mongoose> {
   }
 
   if (!cached.promise) {
-    const uri =
-      process.env.MONGODB_URI ||
-      "***REDACTED_MONGODB_URI***";
+    // No fallback URI: a checked-in credential would hand the database to
+    // anyone with repository access. getMongoUri() throws when unset.
+    const uri = getMongoUri();
     cached.promise = mongoose
       .connect(uri, {
         maxPoolSize: 5,
