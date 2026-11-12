@@ -11,7 +11,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { IncomingTransfersCard } from "./IncomingTransfersCard";
 import { formatAvgResolution } from "@/lib/formatAvgResolution";
 import { TRANSFERS_ENABLED } from "@/lib/features";
-import ActivityHeatmap, { type ActivityDay } from "@/components/ui/activity-heatmap";
+import dynamic from "next/dynamic";
+import { type ActivityDay } from "@/components/ui/activity-heatmap";
+
+const ActivityHeatmap = dynamic(() => import("@/components/ui/activity-heatmap"), {
+  ssr: false,
+  loading: () => <Skeleton className="h-32 w-full rounded-xl" />,
+});
 import {
   AlertTriangle,
   TrendingUp,

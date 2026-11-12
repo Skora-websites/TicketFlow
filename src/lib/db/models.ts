@@ -343,6 +343,7 @@ const CommentSchema = new Schema<IComment>({
 });
 
 CommentSchema.index({ ticketId: 1, createdAt: 1 });
+CommentSchema.index({ authorId: 1, createdAt: 1 });
 
 /* ------------------------- Ticket Read State ------------------------- */
 

@@ -26,17 +26,6 @@ const gitlabMono = localFont({
   display: "swap",
 });
 
-const incognito = localFont({
-  src: [
-    { path: "./fonts/Incognito-Regular.woff2", weight: "400", style: "normal" },
-    { path: "./fonts/Incognito-SemiBold.woff2", weight: "600", style: "normal" },
-    { path: "./fonts/Incognito-Bold.woff2", weight: "700", style: "normal" },
-    { path: "./fonts/Incognito-ExtraBold.woff2", weight: "800", style: "normal" },
-  ],
-  variable: "--font-incognito",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
   title: "TicketFlow - Modern Ticketing System",
   description: "A comprehensive ticketing system with role-based access control",
@@ -70,7 +59,7 @@ export default function RootLayout({
         />
       </head>
       <body
-        className={`${plusJakarta.variable} ${inter.variable} ${gitlabMono.variable} ${incognito.variable} antialiased`}
+        className={`${plusJakarta.variable} ${inter.variable} ${gitlabMono.variable} antialiased`}
       >
         <Providers>{children}</Providers>
       </body>

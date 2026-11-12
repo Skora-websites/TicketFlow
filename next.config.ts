@@ -2,6 +2,9 @@ import type { NextConfig } from "next";
 import path from "path";
 
 const nextConfig: NextConfig = {
+  experimental: {
+    optimizePackageImports: ["lucide-react", "recharts", "date-fns"],
+  },
   webpack: (config, { isServer }) => {
     if (process.env.NODE_ENV === "development") {
       config.module.rules.push({

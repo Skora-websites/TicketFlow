@@ -68,12 +68,6 @@ export async function GET() {
     }
 
     const [
-      totalTickets,
-      openTickets,
-      inProgressTickets,
-      onHoldTickets,
-      resolvedTickets,
-      closedTickets,
       unassignedTickets,
       avgResolution,
       ticketsByStatus,
@@ -84,12 +78,6 @@ export async function GET() {
       teamWorkload,
       contributions,
     ] = await Promise.all([
-      Ticket.countDocuments(baseFilter).maxTimeMS(DB_QUERY_MAX_TIME_MS),
-      Ticket.countDocuments({ ...baseFilter, status: "open" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
-      Ticket.countDocuments({ ...baseFilter, status: "in_progress" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
-      Ticket.countDocuments({ ...baseFilter, status: "on_hold" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
-      Ticket.countDocuments({ ...baseFilter, status: "resolved" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
-      Ticket.countDocuments({ ...baseFilter, status: "closed" }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
       Ticket.countDocuments({ ...baseFilter, assigneeId: null }).maxTimeMS(DB_QUERY_MAX_TIME_MS),
       (async () => {
         const result = await Ticket.aggregate(
@@ -368,6 +356,20 @@ export async function GET() {
         return days;
       })(),
     ]);
+
+    const statusCounts: Record<string, number> = {};
+    let totalTickets = 0;
+    for (const item of ticketsByStatus) {
+      if (item._id) {
+        statusCounts[item._id] = item.count;
+      }
+      totalTickets += item.count;
+    }
+    const openTickets = statusCounts["open"] ?? 0;
+    const inProgressTickets = statusCounts["in_progress"] ?? 0;
+    const onHoldTickets = statusCounts["on_hold"] ?? 0;
+    const resolvedTickets = statusCounts["resolved"] ?? 0;
+    const closedTickets = statusCounts["closed"] ?? 0;
 
     return NextResponse.json({
       overview: {
