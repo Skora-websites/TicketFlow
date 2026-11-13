@@ -146,7 +146,7 @@ function ThemeToggle({
 }
 
 export function Header() {
-  const { data: session } = useSession();
+  const { data: session, update } = useSession();
   const { resolvedTheme, setTheme } = useTheme();
   const user = session?.user;
   const pathname = usePathname();
@@ -160,6 +160,7 @@ export function Header() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ theme: newTheme }),
       }).catch(() => {});
+      update?.({ theme: newTheme }).catch(() => {});
     }
   };
 

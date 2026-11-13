@@ -132,6 +132,18 @@ export default function SettingsPage() {
     }
   }
 
+  const handleThemeChange = (newTheme: "dark" | "light" | "system") => {
+    setTheme(newTheme);
+    if (session?.user?.id) {
+      fetch("/api/users/me", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ theme: newTheme }),
+      }).catch(() => {});
+      update?.({ theme: newTheme }).catch(() => {});
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="space-y-6 max-w-3xl">
@@ -297,17 +309,7 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant={mounted && theme === "dark" ? "default" : "outline"}
-                onClick={async () => {
-                  setTheme("dark");
-                  try {
-                    await fetch("/api/users/me", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ theme: "dark" }),
-                    });
-                    await update({ theme: "dark" });
-                  } catch {}
-                }}
+                onClick={() => handleThemeChange("dark")}
                 className="w-full font-semibold flex items-center justify-center gap-2"
               >
                 <Moon className="h-4 w-4 shrink-0" />
@@ -316,17 +318,7 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant={mounted && theme === "light" ? "default" : "outline"}
-                onClick={async () => {
-                  setTheme("light");
-                  try {
-                    await fetch("/api/users/me", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ theme: "light" }),
-                    });
-                    await update({ theme: "light" });
-                  } catch {}
-                }}
+                onClick={() => handleThemeChange("light")}
                 className="w-full font-semibold flex items-center justify-center gap-2"
               >
                 <Sun className="h-4 w-4 shrink-0" />
@@ -335,17 +327,7 @@ export default function SettingsPage() {
               <Button
                 type="button"
                 variant={mounted && theme === "system" ? "default" : "outline"}
-                onClick={async () => {
-                  setTheme("system");
-                  try {
-                    await fetch("/api/users/me", {
-                      method: "PATCH",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ theme: "system" }),
-                    });
-                    await update({ theme: "system" });
-                  } catch {}
-                }}
+                onClick={() => handleThemeChange("system")}
                 className="w-full font-semibold flex items-center justify-center gap-2"
               >
                 <Laptop className="h-4 w-4 shrink-0" />

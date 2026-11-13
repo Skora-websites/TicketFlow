@@ -65,7 +65,8 @@ export default function RootLayout({
               var t = localStorage.getItem('ticketflow-color-theme') || 'purple';
               document.documentElement.setAttribute('data-color-theme', t);
               var m = localStorage.getItem('theme') || 'dark';
-              if (isApp && m === 'light') {
+              var isLight = isApp && (m === 'light' || (m === 'system' && !window.matchMedia('(prefers-color-scheme: dark)').matches));
+              if (isLight) {
                 document.documentElement.classList.add('light');
                 document.documentElement.classList.remove('dark');
               } else {

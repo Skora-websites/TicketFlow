@@ -3,7 +3,7 @@
 import { SessionProvider, useSession } from "next-auth/react";
 import { ThemeProvider, useTheme } from "next-themes";
 import { Toaster } from "@/components/ui/toaster";
-import { ReactNode, useEffect } from "react";
+import { ReactNode, useEffect, useRef } from "react";
 
 import { usePathname } from "next/navigation";
 
@@ -13,16 +13,19 @@ import { MinimizedWorkflowDock } from "@/components/drafts/MinimizedWorkflowDock
 
 function AccountThemeSync() {
   const { data: session } = useSession();
-  const { theme, setTheme } = useTheme();
+  const { setTheme } = useTheme();
+  const lastSyncedUserRef = useRef<string | null>(null);
 
   useEffect(() => {
+    const userId = session?.user?.id;
     const accountTheme = session?.user?.theme;
-    if (accountTheme && (accountTheme === "dark" || accountTheme === "light" || accountTheme === "system")) {
-      if (theme !== accountTheme) {
+    if (userId && accountTheme && (accountTheme === "dark" || accountTheme === "light" || accountTheme === "system")) {
+      if (lastSyncedUserRef.current !== userId) {
+        lastSyncedUserRef.current = userId;
         setTheme(accountTheme);
       }
     }
-  }, [session?.user?.id, session?.user?.theme, setTheme, theme]);
+  }, [session?.user?.id, session?.user?.theme, setTheme]);
 
   return null;
 }
@@ -36,7 +39,7 @@ export function Providers({ children }: { children: ReactNode }) {
       <ThemeProvider
         attribute="class"
         defaultTheme="dark"
-        enableSystem={false}
+        enableSystem={true}
         forcedTheme={isApp ? undefined : "dark"}
       >
         <ColorThemeProvider isApp={Boolean(isApp)}>
