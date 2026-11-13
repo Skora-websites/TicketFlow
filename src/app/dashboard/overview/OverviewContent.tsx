@@ -30,6 +30,7 @@ import {
   CheckCircle2,
   Plus,
   TicketPlus,
+  TicketCheck,
   ArrowRight,
 } from "lucide-react";
 import {
@@ -485,7 +486,7 @@ export function OverviewContent() {
 
       {/* Page Header */}
       {/* Page Header */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between pb-1">
+      <div className="flex items-start justify-between gap-3 pb-1 sm:items-end">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             Overview
@@ -495,14 +496,28 @@ export function OverviewContent() {
             <span className="font-medium text-foreground">{formatAvgResolution(overview.avgResolutionDays, overview.avgResolutionHours)}</span>
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Link href="/dashboard/tickets" className="flex-1 sm:flex-initial">
-            <Button variant="outline" size="sm" className="w-full sm:w-auto">View all tickets</Button>
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <Link href="/dashboard/tickets">
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3 text-xs"
+              title="View all tickets"
+              aria-label="View all tickets"
+            >
+              <TicketCheck className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">View all tickets</span>
+            </Button>
           </Link>
-          <Link href="/dashboard/tickets/new" className="flex-1 sm:flex-initial">
-            <Button size="sm" className="w-full sm:w-auto">
-              <Plus className="h-3.5 w-3.5" />
-              New ticket
+          <Link href="/dashboard/tickets/new">
+            <Button
+              size="sm"
+              className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3 text-xs font-semibold"
+              title="New ticket"
+              aria-label="New ticket"
+            >
+              <Plus className="h-4 w-4 sm:mr-1.5" />
+              <span className="hidden sm:inline">New ticket</span>
             </Button>
           </Link>
         </div>

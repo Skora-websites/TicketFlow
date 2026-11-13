@@ -229,7 +229,7 @@ export function DepartmentsContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="page-header-title">Departments</h1>
           <p className="page-header-sub">
@@ -238,9 +238,14 @@ export function DepartmentsContent() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreateDialog} className="w-full sm:w-auto h-9.5 sm:h-8.5 font-bold">
-              <Plus className="w-4 h-4 mr-2" />
-              Add Department
+            <Button
+              onClick={openCreateDialog}
+              className="h-8 w-8 p-0 sm:h-8.5 sm:w-auto sm:px-4 font-bold shrink-0"
+              title="Add Department"
+              aria-label="Add Department"
+            >
+              <Plus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add Department</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">

@@ -92,17 +92,22 @@ export function ClientTicketsContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="page-header-title">My Tickets</h1>
           <p className="page-header-sub" role="status">
             {tickets.length} ticket{tickets.length !== 1 ? "s" : ""} total
           </p>
         </div>
-        <Link href="/client/tickets/new" className="w-full sm:w-auto">
-          <Button className="w-full sm:w-auto h-9.5 sm:h-8.5 font-bold">
-            <Plus className="w-4 h-4 mr-2" />
-            Create Ticket
+        <Link href="/client/tickets/new" className="shrink-0">
+          <Button
+            size="sm"
+            className="h-8 w-8 p-0 sm:h-8.5 sm:w-auto sm:px-4 font-bold shrink-0"
+            title="Create Ticket"
+            aria-label="Create Ticket"
+          >
+            <Plus className="w-4 h-4 sm:mr-2" />
+            <span className="hidden sm:inline">Create Ticket</span>
           </Button>
         </Link>
       </div>

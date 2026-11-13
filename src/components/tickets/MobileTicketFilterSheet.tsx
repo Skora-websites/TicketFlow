@@ -100,18 +100,17 @@ export function MobileTicketFilterSheet({
         <Button
           variant="outline"
           size="sm"
-          className="relative gap-2 h-9 px-3 font-semibold rounded-xl border-border bg-card shadow-xs"
+          className="relative h-10 w-10 p-0 shrink-0 rounded-xl border-border bg-card shadow-xs"
           aria-label={`Open filters. ${activeFiltersCount} active`}
+          title="Open filters"
         >
           <Filter className="h-4 w-4 text-primary" aria-hidden />
-          <span>Filters</span>
           {activeFiltersCount > 0 && (
-            <Badge
-              variant="default"
-              className="ml-0.5 h-5 min-w-5 px-1.5 text-[10px] font-bold rounded-full bg-primary text-primary-foreground"
+            <span
+              className="absolute -top-1 -right-1 flex h-4.5 min-w-4.5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground shadow-xs"
             >
               {activeFiltersCount}
-            </Badge>
+            </span>
           )}
         </Button>
       </BottomSheetTrigger>

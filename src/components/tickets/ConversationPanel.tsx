@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { UserAvatar } from "./badges";
 import type { IComment as CommentModel, IUser as UserType } from "@/lib/db/models";
-import { Download, Pencil, Trash2, X, Check, Paperclip, Lock, MessageSquareDashed, CheckCheck, Minimize2, Maximize2 } from "lucide-react";
+import { Download, Pencil, Trash2, X, Check, Paperclip, Lock, MessageSquareDashed, CheckCheck, Minimize2, Maximize2, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Timestamp } from "@/components/ui/timestamp";
 import { cn } from "@/lib/utils";
@@ -835,14 +835,18 @@ export function ConversationPanel({
                 value={replyText}
                 onChange={(e) => setReplyText(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
+                  // Mobile mode: Enter inserts a newline (WhatsApp-style); Send button handles submission
+                  const isMobile =
+                    typeof window !== "undefined" &&
+                    (window.innerWidth < 640 || "ontouchstart" in window);
+                  if (!isMobile && e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     if (!isSubmittingRef.current && (replyText.trim() || attachment)) {
                       void handleSubmit();
                     }
                   }
                 }}
-                placeholder={internal ? "Internal note — clients never see this…" : "Write a message… (Enter to send, Shift+Enter for newline)"}
+                placeholder={internal ? "Internal note — clients never see this…" : "Write a message…"}
                 className="flex-1 resize-none border-none bg-transparent text-base sm:text-sm focus:outline-none py-1"
                 rows={2}
                 disabled={isSubmitting}
@@ -870,10 +874,27 @@ export function ConversationPanel({
                   <Lock className="h-3 w-3 sm:hidden" />
                 </label>
               )}
+
+              {/* Mobile WhatsApp-style inline Send button */}
+              <Button
+                type="submit"
+                size="icon"
+                variant={internal ? "warning" : "default"}
+                disabled={isSubmitting || (!replyText.trim() && !attachment)}
+                className={cn(
+                  "h-8 w-8 rounded-full sm:hidden shrink-0 transition-transform active:scale-95",
+                  internal
+                    ? "bg-warning text-warning-foreground hover:bg-warning/90"
+                    : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+                aria-label={internal ? "Add internal note" : "Send message"}
+              >
+                <ArrowUp className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
-          <div className="flex items-center justify-between">
+          <div className={cn("flex items-center justify-between", !replyText.trim() && "hidden sm:flex")}>
             {replyText.trim() ? (
               <Button
                 type="button"
@@ -888,13 +909,14 @@ export function ConversationPanel({
               </Button>
             ) : <div />}
 
+            {/* Desktop Send button (hidden on mobile) */}
             <Button
               type="submit"
               size="sm"
               variant={internal ? "warning" : "default"}
               loading={isSubmitting}
               disabled={isSubmitting || (!replyText.trim() && !attachment)}
-              className="h-9 sm:h-8 px-4 text-xs font-bold"
+              className="hidden sm:inline-flex h-9 sm:h-8 px-4 text-xs font-bold"
             >
               {internal ? "Add internal note" : "Send message"}
             </Button>

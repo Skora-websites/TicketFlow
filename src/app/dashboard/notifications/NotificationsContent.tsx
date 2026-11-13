@@ -339,22 +339,31 @@ export function NotificationsContent() {
               : "You're all caught up."}
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
           {items.length > 0 && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowClearAllConfirm(true)}
-              className="gap-1.5 text-muted-foreground hover:text-destructive"
+              className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3 gap-1.5 text-muted-foreground hover:text-destructive shrink-0"
+              title="Clear all notifications"
+              aria-label="Clear all notifications"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              Clear all
+              <Trash2 className="w-4 h-4 sm:w-3.5 sm:h-3.5" />
+              <span className="hidden sm:inline">Clear all</span>
             </Button>
           )}
           {unreadCount > 0 && (
-            <Button variant="outline" size="sm" onClick={markAllRead} className="gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={markAllRead}
+              className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3 gap-1.5 shrink-0"
+              title="Mark all as read"
+              aria-label="Mark all as read"
+            >
               <CheckCheck className="w-4 h-4" />
-              Mark all read
+              <span className="hidden sm:inline">Mark all read</span>
             </Button>
           )}
         </div>
@@ -370,39 +379,46 @@ export function NotificationsContent() {
             <span>selected of {items.length}</span>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleBulkToggleRead(true)}
-              className="h-8 gap-1.5 text-xs"
+              className="h-8 w-8 p-0 sm:w-auto sm:px-3 sm:gap-1.5 text-xs"
+              title="Mark as read"
+              aria-label="Mark as read"
             >
               <CheckCheck className="w-3.5 h-3.5 text-emerald-500" />
-              Mark as read
+              <span className="hidden sm:inline">Mark as read</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => handleBulkToggleRead(false)}
-              className="h-8 gap-1.5 text-xs"
+              className="h-8 w-8 p-0 sm:w-auto sm:px-3 sm:gap-1.5 text-xs"
+              title="Mark as unread"
+              aria-label="Mark as unread"
             >
               <CircleDot className="w-3.5 h-3.5 text-primary" />
-              Mark as unread
+              <span className="hidden sm:inline">Mark as unread</span>
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowBulkDeleteConfirm(true)}
-              className="h-8 gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              className="h-8 w-8 p-0 sm:w-auto sm:px-3 sm:gap-1.5 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              title="Delete selected"
+              aria-label="Delete selected"
             >
               <Trash2 className="w-3.5 h-3.5" />
-              Delete selected
+              <span className="hidden sm:inline">Delete selected</span>
             </Button>
             <Button
               variant="ghost"
               size="icon"
               className="h-8 w-8 text-muted-foreground"
               onClick={() => setSelectedIds(new Set())}
+              title="Cancel selection"
               aria-label="Cancel selection"
             >
               <X className="w-4 h-4" />

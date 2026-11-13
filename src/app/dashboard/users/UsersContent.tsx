@@ -23,6 +23,8 @@ import {
   Edit,
   Trash2,
   Power,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { IDepartment } from "@/lib/db/models";
@@ -474,7 +476,7 @@ export function UsersContent() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="page-header-title">Users</h1>
           <p className="page-header-sub">
@@ -483,9 +485,14 @@ export function UsersContent() {
         </div>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={openCreateDialog}>
-              <UserPlus className="w-4 h-4 mr-2" />
-              Add User
+            <Button
+              onClick={openCreateDialog}
+              className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-4 font-semibold shrink-0"
+              title="Add User"
+              aria-label="Add User"
+            >
+              <UserPlus className="w-4 h-4 sm:mr-2" />
+              <span className="hidden sm:inline">Add User</span>
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
@@ -758,11 +765,29 @@ export function UsersContent() {
                     {pagination.total} users
                   </p>
                   <div className="flex items-center gap-2">
-                    <Button variant="outline" size="sm" onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))} disabled={pagination.page === 1}>
-                      Previous
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination((p) => ({ ...p, page: p.page - 1 }))}
+                      disabled={pagination.page === 1}
+                      className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3"
+                      title="Previous page"
+                      aria-label="Previous page"
+                    >
+                      <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Previous</span>
                     </Button>
-                    <Button variant="outline" size="sm" onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))} disabled={pagination.page === pagination.totalPages}>
-                      Next
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setPagination((p) => ({ ...p, page: p.page + 1 }))}
+                      disabled={pagination.page === pagination.totalPages}
+                      className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3"
+                      title="Next page"
+                      aria-label="Next page"
+                    >
+                      <span className="hidden sm:inline">Next</span>
+                      <ChevronRight className="h-4 w-4 sm:ml-1" />
                     </Button>
                   </div>
                 </div>

@@ -30,6 +30,8 @@ import {
   RotateCcw,
   Send,
   Lock,
+  SlidersHorizontal,
+  ArrowDown,
 } from "lucide-react";
 import {
   Select,
@@ -367,16 +369,18 @@ export function TicketDetail({
           <h1 className="font-display text-xl font-bold tracking-tight text-foreground sm:text-2xl">
             {ticket.title}
           </h1>
-          <div className="flex shrink-0 items-center gap-2">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             {canSendTransfer && (
               <Button
                 variant="outline"
                 size="sm"
                 onClick={() => setIsTransferDialogOpen(true)}
-                className="shrink-0"
+                className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3 shrink-0"
+                title="Send to team"
+                aria-label="Send to team"
               >
-                <Send className="mr-1.5 h-4 w-4" aria-hidden />
-                Send to team
+                <Send className="h-4 w-4 sm:mr-1.5" aria-hidden />
+                <span className="hidden sm:inline">Send to team</span>
               </Button>
             )}
             {canDelete && (
@@ -386,10 +390,16 @@ export function TicketDetail({
                     variant="destructive-outline"
                     size="sm"
                     disabled={isDeleting}
-                    className="shrink-0"
+                    className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3 shrink-0"
+                    title="Delete ticket"
+                    aria-label="Delete ticket"
                   >
-                    {isDeleting ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Trash2 className="h-4 w-4" aria-hidden />}
-                    Delete
+                    {isDeleting ? (
+                      <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                    ) : (
+                      <Trash2 className="h-4 w-4 sm:mr-1.5 text-destructive" aria-hidden />
+                    )}
+                    <span className="hidden sm:inline">Delete</span>
                   </Button>
                 </AlertDialogTrigger>
                 <AlertDialogContent>
@@ -452,12 +462,14 @@ export function TicketDetail({
           )}
         </div>
         {!isClient && (
-          <div className="mt-2.5 flex items-center gap-2 lg:hidden">
+          <div className="mt-2 flex items-center gap-2 lg:hidden">
             <a
               href="#ticket-manage-section"
-              className="inline-flex h-7.5 items-center gap-1.5 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-foreground shadow-2xs hover:bg-secondary active:scale-95 transition-all"
+              className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-border bg-card px-2 text-xs font-medium text-foreground shadow-2xs hover:bg-secondary active:scale-95 transition-all"
             >
-              Manage & Details ({ticket.status.replace("_", " ")}) ↓
+              <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
+              <span>Manage & Details</span>
+              <ArrowDown className="h-3 w-3 text-muted-foreground" />
             </a>
           </div>
         )}
@@ -477,9 +489,19 @@ export function TicketDetail({
             </div>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="warning-outline" disabled={isReopening}>
-                  {isReopening ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <RotateCcw className="mr-2 h-4 w-4" aria-hidden />}
-                  Reopen ticket
+                <Button
+                  variant="warning-outline"
+                  disabled={isReopening}
+                  className="h-9 px-3 sm:h-9 sm:px-4"
+                  title="Reopen ticket"
+                  aria-label="Reopen ticket"
+                >
+                  {isReopening ? (
+                    <Loader2 className="h-4 w-4 animate-spin sm:mr-2" aria-hidden />
+                  ) : (
+                    <RotateCcw className="h-4 w-4 sm:mr-2" aria-hidden />
+                  )}
+                  <span className="hidden sm:inline">Reopen ticket</span>
                 </Button>
               </AlertDialogTrigger>
               <AlertDialogContent>

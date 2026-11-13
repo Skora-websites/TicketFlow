@@ -1,7 +1,8 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
 import "./globals.css";
 import { Providers } from "@/components/Providers";
+import { PwaRegister } from "@/components/PwaRegister";
 
 import { Plus_Jakarta_Sans } from "next/font/google";
 
@@ -26,9 +27,26 @@ const gitlabMono = localFont({
   display: "swap",
 });
 
+export const viewport: Viewport = {
+  themeColor: "#120A20",
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
+
 export const metadata: Metadata = {
   title: "TicketFlow - Modern Ticketing System",
   description: "A comprehensive ticketing system with role-based access control",
+  applicationName: "TicketFlow",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "TicketFlow",
+  },
+  icons: {
+    icon: "/icons/icon-192.png",
+    apple: "/icons/apple-touch-icon.png",
+  },
 };
 
 export default function RootLayout({
@@ -61,7 +79,10 @@ export default function RootLayout({
       <body
         className={`${plusJakarta.variable} ${inter.variable} ${gitlabMono.variable} antialiased`}
       >
-        <Providers>{children}</Providers>
+        <Providers>
+          <PwaRegister />
+          {children}
+        </Providers>
       </body>
     </html>
   );

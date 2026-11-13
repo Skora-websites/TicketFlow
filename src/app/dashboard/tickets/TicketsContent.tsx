@@ -38,6 +38,8 @@ import {
   Columns3,
   List,
   TicketPlus,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react";
 import type { IUser, IDepartment } from "@/lib/db/models";
 
@@ -223,15 +225,20 @@ export function TicketsContent() {
   return (
     <div className="space-y-6">
       {/* Page Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-center justify-between gap-4">
         <div>
           <h1 className="page-header-title">{title}</h1>
           <p className="page-header-sub">{subtitle}</p>
         </div>
-        <Link href="/dashboard/tickets/new">
-          <Button>
-            <Plus className="mr-2 h-4 w-4" aria-hidden />
-            New Ticket
+        <Link href="/dashboard/tickets/new" className="shrink-0">
+          <Button
+            size="sm"
+            className="h-8 w-8 p-0 sm:h-9 sm:w-auto sm:px-4 font-semibold shrink-0"
+            title="Create new ticket"
+            aria-label="Create new ticket"
+          >
+            <Plus className="h-4 w-4 sm:mr-1.5" aria-hidden />
+            <span className="hidden sm:inline">New Ticket</span>
           </Button>
         </Link>
       </div>
@@ -742,16 +749,24 @@ export function TicketsContent() {
                       size="sm"
                       onClick={() => handlePageChange(pagination.page - 1)}
                       disabled={pagination.page === 1}
+                      className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3"
+                      title="Previous page"
+                      aria-label="Previous page"
                     >
-                      Previous
+                      <ChevronLeft className="h-4 w-4 sm:mr-1" />
+                      <span className="hidden sm:inline">Previous</span>
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handlePageChange(pagination.page + 1)}
                       disabled={pagination.page === pagination.totalPages}
+                      className="h-8 w-8 p-0 sm:h-8 sm:w-auto sm:px-3"
+                      title="Next page"
+                      aria-label="Next page"
                     >
-                      Next
+                      <span className="hidden sm:inline">Next</span>
+                      <ChevronRight className="h-4 w-4 sm:ml-1" />
                     </Button>
                   </div>
                 </div>
